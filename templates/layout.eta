@@ -19,5 +19,30 @@
 <main>
 <%~ it.body %>
 </main>
+<script>
+(function () {
+  // Deterrent message — visible to anyone who opens the console
+  console.log('%c⚽ WCTG', 'font-size:2rem;font-weight:bold;color:#111');
+  console.log('%cHello. All activity on this site is logged. Play fair!', 'color:#c00;font-size:13px');
+
+  // Detect undocked devtools via window size difference
+  var reported = false;
+  function checkDevTools() {
+    if (reported) return;
+    var w = window.outerWidth  - window.innerWidth  > 160;
+    var h = window.outerHeight - window.innerHeight > 160;
+    if (w || h) {
+      reported = true;
+      fetch('/api/suspicious', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'devtools-open' })
+      }).catch(function () {});
+    }
+  }
+  window.addEventListener('resize', checkDevTools);
+  setInterval(checkDevTools, 3000);
+})();
+</script>
 </body>
 </html>

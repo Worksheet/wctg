@@ -2,6 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const { generateToken } = require('../lib/tokens');
 const { notify }        = require('../lib/notify');
+const { logSecurityEvent } = require('./admin');
 
 function getDb(req) { return req.app.locals.db; }
 
@@ -151,7 +152,10 @@ router.get('/:id/confirm', (req, res) => {
   const db    = getDb(req);
   const trade = db.get('SELECT * FROM trades WHERE id = ?', [parseInt(req.params.id)]);
   if (!trade) return res.status(404).render('error', { title: 'Not Found', message: 'Trade not found.' });
-  if (trade.confirm_token !== req.query.token) return res.status(403).render('error', { title: 'Invalid Link', message: 'This confirmation link is invalid.' });
+  if (trade.confirm_token !== req.query.token) {
+    logSecurityEvent(db, req, 'wrong-confirm-token', cookiePlayer(req)?.id, `Trade #${trade.id}`);
+    return res.status(403).render('error', { title: 'Invalid Link', message: 'This confirmation link is invalid.' });
+  }
   if (trade.status !== 'pending') return res.render('token_used', { title: 'Already Responded', trade });
   if (checkExpiry(db, trade, res)) return;
 
@@ -167,6 +171,7 @@ router.get('/:id/confirm', (req, res) => {
     });
   }
   if (cookie && cookie.id !== trade.writer_id && cookie.id !== trade.counterparty_id) {
+    logSecurityEvent(db, req, 'blocked-confirm', cookie.id, `Trade #${trade.id}`);
     return res.render('error', { title: 'Not your trade', message: `You are logged in as ${cookie.name}, who is not a party to this trade.` });
   }
 
@@ -187,7 +192,10 @@ router.get('/:id/reject', (req, res) => {
   const db    = getDb(req);
   const trade = db.get('SELECT * FROM trades WHERE id = ?', [parseInt(req.params.id)]);
   if (!trade) return res.status(404).render('error', { title: 'Not Found', message: 'Trade not found.' });
-  if (trade.reject_token !== req.query.token) return res.status(403).render('error', { title: 'Invalid Link', message: 'This rejection link is invalid.' });
+  if (trade.reject_token !== req.query.token) {
+    logSecurityEvent(db, req, 'wrong-reject-token', cookiePlayer(req)?.id, `Trade #${trade.id}`);
+    return res.status(403).render('error', { title: 'Invalid Link', message: 'This rejection link is invalid.' });
+  }
   if (trade.status !== 'pending') return res.render('token_used', { title: 'Already Responded', trade });
   if (checkExpiry(db, trade, res)) return;
 
@@ -203,6 +211,7 @@ router.get('/:id/reject', (req, res) => {
     });
   }
   if (cookie && cookie.id !== trade.writer_id && cookie.id !== trade.counterparty_id) {
+    logSecurityEvent(db, req, 'blocked-reject', cookie.id, `Trade #${trade.id}`);
     return res.render('error', { title: 'Not your trade', message: `You are logged in as ${cookie.name}, who is not a party to this trade.` });
   }
 

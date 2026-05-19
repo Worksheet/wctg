@@ -50,6 +50,19 @@ app.post('/login', (req, res) => {
   res.redirect(redirect);
 });
 
+// Client-side suspicious activity reports (devtools detection etc.)
+app.post('/api/suspicious', (req, res) => {
+  const db       = req.app.locals.db;
+  const { type } = req.body;
+  if (!type) return res.sendStatus(400);
+  const playerId = req.cookies.wctg_player ? parseInt(req.cookies.wctg_player, 10) : null;
+  const ip       = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const ua       = req.headers['user-agent'] || '';
+  db.run('INSERT INTO security_events (event_type, player_id, ip_address, user_agent) VALUES (?,?,?,?)',
+    [type, playerId || null, ip, ua]);
+  res.sendStatus(200);
+});
+
 app.use('/trade',     require('./routes/trade'));
 app.use('/blotter',   require('./routes/blotter'));
 app.use('/positions', require('./routes/positions'));

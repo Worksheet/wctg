@@ -1,8 +1,53 @@
 <% layout('./layout') %>
 <h1>Admin</h1>
 
+<% if (it.isAdmin) { %>
+<p class="success" style="display:flex;justify-content:space-between;align-items:center">
+  <span>Logged in as admin.</span>
+  <form method="POST" action="/admin/logout" style="margin:0">
+    <button type="submit">Log out</button>
+  </form>
+</p>
+<% } else { %>
+<h2>Admin login</h2>
+<% if (it.loginError) { %><p class="error">Incorrect passphrase.</p><% } %>
+<form method="POST" action="/admin/login" class="inline-form">
+  <input type="password" name="password" placeholder="Passphrase" required autocomplete="current-password">
+  <button type="submit">Log in</button>
+</form>
+<% } %>
+
+<% if (it.isAdmin) { %>
 <% if (it.error) { %><p class="error"><%= it.error %></p><% } %>
-<% if (it.success) { %><p class="success"><%= it.success %></p><% } %>
+
+<h2>Players</h2>
+<table class="blotter-table">
+  <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Ntfy topic</th><th></th></tr></thead>
+  <tbody>
+  <% for (const p of it.players) { %>
+  <tr>
+    <td><%= p.id %></td>
+    <td><form method="POST" action="/admin/players/<%= p.id %>" style="display:contents">
+      <input type="text" name="name" value="<%= p.name %>">
+    </td>
+    <td><input type="email" name="email" value="<%= p.email %>"></td>
+    <td><input type="text" name="ntfy_topic" value="<%= p.ntfy_topic || '' %>" placeholder="e.g. wctg-alice-a1b2"></td>
+    <td><button type="submit">Save</button></form>
+    <form method="POST" action="/admin/players/<%= p.id %>/delete" style="display:inline" onsubmit="return confirm('Delete <%= p.name %>?')">
+      <button type="submit">Delete</button>
+    </form></td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+
+<h3>Add player</h3>
+<form method="POST" action="/admin/players" class="inline-form">
+  <input type="text" name="name" placeholder="Name" required>
+  <input type="email" name="email" placeholder="email@example.com" required>
+  <input type="text" name="ntfy_topic" placeholder="Ntfy topic (optional)">
+  <button type="submit">Add</button>
+</form>
 
 <h2>Snapshots</h2>
 <form method="POST" action="/admin/snapshot" class="inline-form">
@@ -20,7 +65,7 @@
     <td><%= s.label || '' %></td>
     <td><%= s.created_at %></td>
     <td>
-      <form method="POST" action="/admin/snapshot/<%= s.id %>/revert" onsubmit="return confirm('Restore snapshot #<%= s.id %>? The current state will be snapshotted first so you can undo.')">
+      <form method="POST" action="/admin/snapshot/<%= s.id %>/revert" onsubmit="return confirm('Restore snapshot #<%= s.id %>? The current state will be snapshotted first.')">
         <button type="submit">Restore</button>
       </form>
     </td>
@@ -33,30 +78,32 @@
 <% } %>
 
 <h2>Excel export / import</h2>
-<p>
-  <a href="/admin/export.xlsx" class="btn-primary">Download database as Excel</a>
-</p>
-<p>Upload a workbook in the same format to overwrite the database. A snapshot is taken automatically before the import so you can restore if something goes wrong.</p>
+<p><a href="/admin/export.xlsx" class="btn-primary">Download database as Excel</a></p>
+<p>Upload a workbook in the same format to overwrite the database. A snapshot is taken automatically before the import.</p>
 <form method="POST" action="/admin/import" enctype="multipart/form-data" onsubmit="return confirm('This will overwrite the entire database. A snapshot is taken first. Continue?')">
   <input type="file" name="file" accept=".xlsx" required>
   <button type="submit">Import and overwrite</button>
 </form>
+<% } %>
 
 <h2>Suspicious Activity Report</h2>
+<p style="font-size:0.85rem;color:#666">All suspicious activity is logged here. This section is visible to everyone — consider it a wall of shame.</p>
 <% if (!it.sar.length) { %>
-<p>No login switches recorded.</p>
+<p>Nothing to report. Everyone is behaving.</p>
 <% } else { %>
-<p>Logged whenever someone switches from one player identity to another.</p>
 <table class="blotter-table">
-  <thead><tr><th>When</th><th>Was</th><th>Switched to</th><th>IP</th><th>User agent</th></tr></thead>
+  <thead>
+    <tr><th>When</th><th>Event</th><th>Actor</th><th>Detail</th><th>IP</th><th>User agent</th></tr>
+  </thead>
   <tbody>
   <% for (const e of it.sar) { %>
   <tr>
     <td><%= e.created_at %></td>
-    <td><%= e.old_player %></td>
-    <td><strong><%= e.new_player %></strong></td>
+    <td><span class="badge badge-<%= e.event_type %>"><%= e.event_type %></span></td>
+    <td><%= e.actor %></td>
+    <td><%= e.detail || '—' %></td>
     <td><code><%= e.ip_address || '—' %></code></td>
-    <td style="font-size:0.75rem;max-width:300px;word-break:break-all"><%= e.user_agent || '—' %></td>
+    <td style="font-size:0.75rem;max-width:250px;word-break:break-all"><%= e.user_agent || '—' %></td>
   </tr>
   <% } %>
   </tbody>

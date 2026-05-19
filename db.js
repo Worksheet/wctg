@@ -92,6 +92,16 @@ CREATE TABLE IF NOT EXISTS login_events (
   created_at    TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS security_events (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_type TEXT NOT NULL,
+  player_id  INTEGER REFERENCES players(id),
+  detail     TEXT,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_trades_writer       ON trades(writer_id);
 CREATE INDEX IF NOT EXISTS idx_trades_counterparty ON trades(counterparty_id);
 CREATE INDEX IF NOT EXISTS idx_trades_status       ON trades(status);
