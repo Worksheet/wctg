@@ -1,31 +1,19 @@
-app = "wctg"
+app            = "wctg"
 primary_region = "lhr"
 
 [build]
 
 [mounts]
-  source = "wctg_data"
+  source      = "wctg_data"
   destination = "/data"
 
 [env]
   DB_PATH = "/data/wctg.db"
   PORT    = "3000"
 
-[[services]]
-  internal_port = 3000
-  protocol      = "tcp"
-
-  [[services.ports]]
-    handlers = ["https"]
-    port     = 443
-
-  [[services.ports]]
-    handlers = ["http"]
-    port     = 80
-    [services.ports.force_https]
-      enabled = true
-
-  [services.concurrency]
-    type       = "connections"
-    hard_limit = 25
-    soft_limit = 20
+[http_service]
+  internal_port       = 3000
+  force_https         = true
+  auto_stop_machines  = true
+  auto_start_machines = true
+  min_machines_running = 0
