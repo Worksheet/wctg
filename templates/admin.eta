@@ -95,7 +95,14 @@
 </form>
 <% } %>
 
-<h2>Suspicious Activity Report</h2>
+<div style="display:flex;align-items:baseline;gap:1rem">
+  <h2 style="margin-bottom:0">Suspicious Activity Report</h2>
+  <% if (it.isAdmin) { %>
+  <form method="POST" action="/admin/sar/clear" onsubmit="return confirm('Mark all SAR entries as read?')">
+    <button type="submit">Clear</button>
+  </form>
+  <% } %>
+</div>
 <p style="font-size:0.85rem;color:#666">All suspicious activity is logged here. This section is visible to everyone — consider it a wall of shame.</p>
 <% if (it.sarEventTypes.length) { %>
 <form method="GET" action="/admin" style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">

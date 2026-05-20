@@ -112,6 +112,8 @@ function migrate() {
   const additions = [
     `ALTER TABLE trades ADD COLUMN auto_confirmed_side TEXT`,
     `ALTER TABLE trades ADD COLUMN expires_at TEXT`,
+    `ALTER TABLE security_events ADD COLUMN read INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE login_events ADD COLUMN read INTEGER NOT NULL DEFAULT 0`,
   ];
   for (const sql of additions) {
     try { _db.exec(sql); } catch (_) { /* column already exists */ }

@@ -42,12 +42,14 @@ function getSar(db, eventFilter) {
     FROM login_events le
     JOIN players pn ON le.player_id     = pn.id
     JOIN players po ON le.old_player_id = po.id
+    WHERE le.read = 0
     UNION ALL
     SELECT se.created_at, se.event_type,
            COALESCE(p.name, '—') AS actor, COALESCE(se.detail, '') AS detail,
            se.ip_address, se.user_agent
     FROM security_events se
     LEFT JOIN players p ON se.player_id = p.id
+    WHERE se.read = 0
     ORDER BY 1 DESC
   `);
   if (eventFilter) return rows.filter(r => r.event_type === eventFilter);
@@ -125,6 +127,14 @@ router.post('/players/:id', requireAdmin, (req, res) => {
 router.post('/players/:id/delete', requireAdmin, (req, res) => {
   const db = getDb(req);
   db.run('DELETE FROM players WHERE id=?', [parseInt(req.params.id)]);
+  res.redirect('/admin');
+});
+
+// ── SAR clear (admin only) ────────────────────────────────────────────────────
+
+router.post('/sar/clear', requireAdmin, (req, res) => {
+  const db = getDb(req);
+  db.exec('UPDATE security_events SET read=1; UPDATE login_events SET read=1');
   res.redirect('/admin');
 });
 

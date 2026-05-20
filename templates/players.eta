@@ -22,6 +22,13 @@
   </tbody>
 </table>
 
+<h2>Add player</h2>
+<form method="POST" action="/players" class="inline-form">
+  <input type="text" name="name" placeholder="Name" required>
+  <input type="email" name="email" placeholder="email@example.com" required>
+  <button type="submit">Add</button>
+</form>
+
 <h2>Setting up Ntfy push notifications</h2>
 <p>
   Ntfy lets trade confirmations appear as push notifications on your phone or desktop — no email needed.
