@@ -12,11 +12,10 @@ Players receive physical teams in a draw and can then trade positions in a paper
 
 ```sh
 npm install
-node seed.js       # load teams and initial players (safe to re-run)
 npm start          # http://localhost:3000
 ```
 
-The database is a single SQLite file (`wctg.db`) created on first run. Delete it to start fresh.
+The database is a single SQLite file (`wctg.db`) created on first run. Teams are seeded automatically on first start. Delete the file to start fresh.
 
 ---
 
@@ -51,11 +50,11 @@ Fly.io is the recommended host. It handles TLS automatically and the free tier i
    fly secrets set WCTG_ADMIN_PASS=<choose>
    ```
 Where you need to `<choose>` your own passphrase to access the Admin panel.
-5. **Seed and deploy**
+5. **Deploy**
    ```sh
    fly deploy
-   fly ssh console -C "node seed.js"
    ```
+   Teams are seeded automatically on first start. Add players via the Admin page once deployed.
 
 6. **Point your domain** — add an A record pointing to your Fly app's IP (`fly ips list`), then:
    ```sh
@@ -126,7 +125,6 @@ sudo npm install -g pm2
 # Deploy the app
 git clone https://github.com/youruser/wctg.git /opt/wctg
 cd /opt/wctg && npm ci --omit=dev
-node seed.js
 pm2 start server.js --name wctg
 pm2 save && pm2 startup
 ```
@@ -157,8 +155,8 @@ TLS is provisioned automatically from Let's Encrypt.
 | `/blotter/:id/amend` | Amend a pending or confirmed trade |
 | `/positions` | Position matrix — teams × players, confirmed trades only |
 | `/report` | Daily report with one-click send to all players |
-| `/players` | Player management and Ntfy topic setup |
-| `/admin` | Snapshots, Excel export/import, Suspicious Activity Report |
+| `/players` | Add players, update display names and Ntfy topics |
+| `/admin` | Snapshots, Excel export/import, Suspicious Activity Report (passphrase required for write operations) |
 
 ---
 
@@ -229,14 +227,19 @@ From that point on, when someone submits a trade with you as counterparty you'll
 
 ## Admin
 
-The admin page (`/admin`) is open to everyone — there is no password. It provides:
+The admin page (`/admin`) is split into two sections:
 
+**Public (no login required)**
+- **Suspicious Activity Report** — log of identity switches, failed login attempts, and devtools usage, with timestamp, IP address, and user agent. Visible to all players as a deterrent. Admins can clear it with the **Clear** button.
+
+**Admin only (passphrase required)**
+- **God Mode** — when enabled, all trades and amendments you submit are auto-confirmed instantly, and you can confirm or reject any trade regardless of which party you are. Cleared when you log in as a player.
+- **Players** — add, edit (name, email), or delete players
 - **Snapshots** — save a point-in-time copy of the entire database; restore any snapshot with one click (the current state is automatically snapshotted before any restore or import, so you can always undo)
 - **Excel export** — download the full database as a `.xlsx` workbook (one sheet per table)
 - **Excel import** — upload a workbook in the same format to overwrite the database
-- **Suspicious Activity Report** — log of every player identity switch, with timestamp, IP address, and user agent
 
-Player management (add, edit, delete, Ntfy topics) is on the **Players** page (`/players`).
+Set the admin passphrase via the `WCTG_ADMIN_PASS` environment variable (defaults to `changeme`).
 
 ---
 
@@ -247,3 +250,4 @@ Player management (add, edit, delete, Ntfy topics) is on the **Players** page (`
 | `PORT` | `3000` | HTTP port |
 | `DB_PATH` | `./wctg.db` | Path to the SQLite file |
 | `NTFY_BASE` | `https://ntfy.sh` | Ntfy server base URL (change if self-hosting) |
+| `WCTG_ADMIN_PASS` | `changeme` | Passphrase for the admin panel — change this in production |
