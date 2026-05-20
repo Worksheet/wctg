@@ -1,5 +1,6 @@
 const express      = require('express');
 const path         = require('path');
+const fs           = require('fs');
 const cookieParser = require('cookie-parser');
 const { Eta }      = require('eta');
 const { init }     = require('./db');
@@ -96,6 +97,14 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 3000;
 
 init().then(db => {
+  // Auto-seed teams on first run
+  if (!db.all('SELECT id FROM teams LIMIT 1').length) {
+    const lines = fs.readFileSync(path.join(__dirname, 'teams.txt'), 'utf8')
+      .split('\n').map(l => l.trim()).filter(Boolean);
+    for (const name of lines) db.run('INSERT INTO teams (name) VALUES (?)', [name]);
+    console.log(`Auto-seeded ${lines.length} teams.`);
+  }
+
   app.locals.db = db;
   app.listen(PORT, () => console.log(`WCTG running on http://localhost:${PORT}`));
 }).catch(err => { console.error('DB init failed:', err); process.exit(1); });
