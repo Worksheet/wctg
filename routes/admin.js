@@ -1,13 +1,20 @@
 const express = require('express');
 const router  = express.Router();
 const multer  = require('multer');
+const crypto  = require('crypto');
 const { exportWorkbook, importWorkbook } = require('../lib/excel');
 
-const upload    = multer({ storage: multer.memoryStorage() });
+const upload     = multer({ storage: multer.memoryStorage() });
 const ADMIN_PASS = process.env.WCTG_ADMIN_PASS || 'changeme';
 
+// Cookie stores an HMAC of the passphrase rather than the passphrase itself.
+// Stateless — no session table needed. Invalidates automatically if ADMIN_PASS changes.
+function adminToken() {
+  return crypto.createHmac('sha256', ADMIN_PASS).update('wctg-admin-session').digest('hex');
+}
+
 function getDb(req)   { return req.app.locals.db; }
-function isAdmin(req) { return req.cookies.wctg_admin === ADMIN_PASS; }
+function isAdmin(req) { return req.cookies.wctg_admin === adminToken(); }
 function getIp(req)   { return req.headers['x-forwarded-for'] || req.socket.remoteAddress; }
 
 function requireAdmin(req, res, next) {
@@ -84,7 +91,7 @@ router.post('/godmode', requireAdmin, (req, res) => {
 router.post('/login', (req, res) => {
   const db = getDb(req);
   if (req.body.password === ADMIN_PASS) {
-    res.cookie('wctg_admin', ADMIN_PASS, { httpOnly: true, sameSite: 'Lax', secure: process.env.NODE_ENV !== 'development' });
+    res.cookie('wctg_admin', adminToken(), { httpOnly: true, sameSite: 'Lax', secure: process.env.NODE_ENV !== 'development' });
     return res.redirect('/admin');
   }
   logSecurityEvent(db, req, 'failed-admin-login', null, null);
