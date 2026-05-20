@@ -3,19 +3,37 @@
 
 <% if (it.error) { %><p class="error"><%= it.error %></p><% } %>
 
-<p style="font-size:0.85rem;color:#666">You can update your display name and Ntfy topic here. Email changes and deleting players require admin access.</p>
+<p style="font-size:0.85rem;color:#666">You can update your display name here. <% if (!it.currentPlayerId) { %>Select your name on the <a href="/trade">New Trade</a> page to edit your Ntfy topic.<% } else { %>Ntfy topic is editable on your own row.<% } %> Email changes and deleting players require admin access.</p>
 
+<%
+function maskMiddle(s) {
+  if (!s) return null;
+  if (s.length <= 6) return { start: '', mid: s, end: '' };
+  return { start: s.slice(0, 3), mid: s.slice(3, -3), end: s.slice(-3) };
+}
+%>
 <table class="blotter-table">
   <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Ntfy topic</th><th></th></tr></thead>
   <tbody>
   <% for (const p of it.players) { %>
+  <% const isMe = it.currentPlayerId !== null && Number(p.id) === Number(it.currentPlayerId); %>
   <tr>
     <td><%= p.id %></td>
     <td><form method="POST" action="/players/<%= p.id %>" style="display:contents">
       <input type="text" name="name" value="<%= p.name %>">
     </td>
-    <td style="color:#666"><%= p.email %></td>
-    <td><input type="text" name="ntfy_topic" value="<%= p.ntfy_topic || '' %>" placeholder="e.g. wctg-alice-a1b2"></td>
+    <td>
+      <% const em = maskMiddle(p.email); %>
+      <% if (em) { %><%= em.start %><span class="censored"><%= em.mid %></span><%= em.end %><% } else { %>—<% } %>
+    </td>
+    <td>
+      <% if (isMe) { %>
+      <input type="text" name="ntfy_topic" value="<%= p.ntfy_topic || '' %>" placeholder="e.g. wctg-alice-a1b2">
+      <% } else { %>
+      <% const nt = maskMiddle(p.ntfy_topic); %>
+      <% if (nt) { %><%= nt.start %><span class="censored"><%= nt.mid %></span><%= nt.end %><% } else { %><span style="color:#999">—</span><% } %>
+      <% } %>
+    </td>
     <td><button type="submit">Save</button></form></td>
   </tr>
   <% } %>
@@ -46,8 +64,7 @@
     (e.g. <code>wctg-alice-a1b2</code>). No account required.
   </li>
   <li>
-    <strong>Enter the topic here</strong> — edit your row above and paste the topic name into the
-    Ntfy topic field, then Save.
+    <strong>Enter the topic here</strong> — log in as yourself (select your name on the New Trade page), then edit your row above and paste the topic name into the Ntfy topic field, then Save.
   </li>
 </ol>
 <p>

@@ -109,6 +109,13 @@ tr:nth-child(even) { background: #fafaf5; }
 .badge-superseded         { background: #e8e0ff; color: #446; text-decoration: line-through; }
 .badge-expired            { background: #f0e8e8; color: #866; text-decoration: line-through; }
 
+/* Censored text (emails etc.) */
+.censored {
+  filter: blur(4px);
+  user-select: none;
+  pointer-events: none;
+}
+
 /* Blotter row tints */
 tr.status-rejected         td { opacity: 0.6; }
 tr.status-amended          td { opacity: 0.7; background: #f0f0f0 !important; }
