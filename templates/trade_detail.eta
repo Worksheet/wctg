@@ -45,10 +45,10 @@
 
 <% if (it.confirmUrl) { %>
 <h2>Confirm / Reject</h2>
-<p>Copy and share these links with the counterparty, or use them directly if you are the counterparty:</p>
+<p>Use these links directly, or copy and share with the counterparty:</p>
 <table class="detail-table">
-  <tr><th>Confirm</th><td><code style="word-break:break-all"><%= it.confirmUrl %></code></td></tr>
-  <tr><th>Reject</th> <td><code style="word-break:break-all"><%= it.rejectUrl %></code></td></tr>
+  <tr><th>Confirm</th><td><a href="<%= it.confirmUrl %>" style="word-break:break-all"><%= it.confirmUrl %></a></td></tr>
+  <tr><th>Reject</th> <td><a href="<%= it.rejectUrl %>"  style="word-break:break-all"><%= it.rejectUrl %></a></td></tr>
 </table>
 <% } %>
 
