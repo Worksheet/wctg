@@ -79,12 +79,12 @@
     <input type="number" name="quantity" value="1" min="1" step="1" class="qty-input">
     <select name="leg_type" class="legtype-select">
       <option value="cash">Cash</option>
-      <option value="swap">Swap</option>
+      <option value="swap" selected>Swap</option>
     </select>
-    <span class="cash-fields">
+    <span class="cash-fields" style="display:none">
       £<input type="number" name="cash_amount" value="0" min="0" step="1" class="cash-input">
     </span>
-    <span class="swap-fields" style="display:none">
+    <span class="swap-fields">
       <select name="swap_team_id" class="swap-team-select">
         <option value="">— swap team —</option>
         <% for (const t of it.teams) { %>
