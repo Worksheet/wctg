@@ -34,7 +34,8 @@ function enrichTrade(trade, db) {
     WHERE tl.trade_id = ?
     ORDER BY tl.id`, [trade.id]);
   trade.pendingAmendment = db.get(
-    `SELECT id, expires_at FROM trades WHERE amended_from_id = ? AND status = 'pending'`,
+    `SELECT id, expires_at, confirm_token, reject_token, auto_confirmed_side
+     FROM trades WHERE amended_from_id = ? AND status = 'pending'`,
     [trade.id]
   );
   return trade;

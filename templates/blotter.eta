@@ -24,7 +24,7 @@
 <table class="blotter-table">
   <thead>
     <tr>
-      <th>#</th><th>Writer</th><th>Counterparty</th><th>Legs</th><th>Status</th><th>Date</th><th></th>
+      <th>#</th><th>Writer</th><th>Counterparty</th><th>Legs</th><th>Status</th><th>Date</th><th></th><th>Accept</th><th>Reject</th>
     </tr>
   </thead>
   <tbody>
@@ -53,6 +53,28 @@
         <a href="/blotter/<%= t.id %>/amend">Amend</a>
         <% } %>
       </td>
+      <%
+        const myId = it.currentPlayerId;
+        let acceptUrl = null, rejectUrl = null;
+        if (myId) {
+          if (t.status === 'pending' && !t.amended_from_id && myId === t.counterparty_id) {
+            acceptUrl = `/trade/${t.id}/confirm?token=${t.confirm_token}`;
+            rejectUrl = `/trade/${t.id}/reject?token=${t.reject_token}`;
+          }
+          if (t.pendingAmendment) {
+            const pa = t.pendingAmendment;
+            const shouldAct = pa.auto_confirmed_side === 'writer'       ? myId === t.counterparty_id
+                            : pa.auto_confirmed_side === 'counterparty' ? myId === t.writer_id
+                            : myId === t.writer_id || myId === t.counterparty_id;
+            if (shouldAct) {
+              acceptUrl = `/trade/${pa.id}/confirm?token=${pa.confirm_token}`;
+              rejectUrl = `/trade/${pa.id}/reject?token=${pa.reject_token}`;
+            }
+          }
+        }
+      %>
+      <td><% if (acceptUrl) { %><a href="<%= acceptUrl %>">Accept</a><% } %></td>
+      <td><% if (rejectUrl) { %><a href="<%= rejectUrl %>">Reject</a><% } %></td>
     </tr>
   <% } %>
   </tbody>
