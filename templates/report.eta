@@ -1,7 +1,30 @@
 <% layout('./layout') %>
 <h1>Daily Report</h1>
 
-<p><a class="mailto-btn" href="<%= it.mailtoUrl %>">Send to all players →</a></p>
+<div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-bottom:0.4rem">
+  <a href="/report/email.eml" class="btn-primary">Download .eml (Outlook / Apple Mail)</a>
+  <button id="copy-html-btn" type="button" onclick="copyHtmlReport()">Copy HTML (Gmail)</button>
+  <a class="mailto-btn" href="<%= it.mailtoUrl %>">Plaintext mailto →</a>
+</div>
+<p style="font-size:0.8rem;color:#666">
+  <strong>.eml</strong> — opens as a ready-to-send draft in Outlook or Apple Mail. &nbsp;
+  <strong>Copy HTML</strong> — paste into Gmail compose (Ctrl+V); formatting is preserved. &nbsp;
+  <strong>Plaintext</strong> — fallback for any email client.
+</p>
+<script>
+async function copyHtmlReport() {
+  try {
+    const r = await fetch('/report/email');
+    const html = await r.text();
+    await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([html], { type: 'text/html' }), 'text/plain': new Blob([html], { type: 'text/plain' }) })]);
+    const btn = document.getElementById('copy-html-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy HTML (Gmail)', 2000);
+  } catch (e) {
+    alert('Copy failed — open the HTML view manually and use Ctrl+A, Ctrl+C.');
+  }
+}
+</script>
 
 <h2>Recent trades</h2>
 <% if (!it.trades.length) { %>

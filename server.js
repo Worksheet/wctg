@@ -7,6 +7,7 @@ const { init }     = require('./db');
 
 const app = express();
 const eta = new Eta({ views: path.join(__dirname, 'templates'), cache: false });
+app.locals.eta = eta;
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
