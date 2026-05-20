@@ -108,6 +108,7 @@ tr:nth-child(even) { background: #fafaf5; }
 .badge-amendment-pending  { background: #ffd580; color: #7a4400; border: 1px solid #e0a020; }
 .badge-superseded         { background: #e8e0ff; color: #446; text-decoration: line-through; }
 .badge-expired            { background: #f0e8e8; color: #866; text-decoration: line-through; }
+.badge-deleted            { background: #111;    color: #f66; text-decoration: line-through; }
 
 /* Censored text (emails etc.) */
 .censored {
@@ -122,6 +123,7 @@ tr.status-amended          td { opacity: 0.7; background: #f0f0f0 !important; }
 tr.status-amendment-pending td { background: #fffbf0 !important; }
 tr.status-superseded       td { opacity: 0.5; background: #f5f0ff !important; }
 tr.status-expired          td { opacity: 0.5; background: #fff5f5 !important; }
+tr.status-deleted          td { opacity: 0.4; background: #1a0000 !important; color: #f66 !important; text-decoration: line-through; }
 
 /* Leg display */
 .leg { font-size: 0.8rem; display: inline-block; margin-right: 0.3rem; }

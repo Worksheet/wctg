@@ -42,6 +42,14 @@
 <% if (it.trade.status === 'pending' || it.trade.status === 'confirmed') { %>
 <p><a href="/blotter/<%= it.trade.id %>/amend" class="btn-primary">Amend this trade</a></p>
 <% } %>
+<% if (it.godMode && it.trade.status !== 'deleted') { %>
+<form method="POST" action="/blotter/<%= it.trade.id %>/delete" onsubmit="return confirm('Delete trade #<%= it.trade.id %>? This cannot be undone (use a snapshot to restore).')">
+  <button type="submit" style="background:#c00;color:#fff;border:none;padding:0.3rem 0.8rem;cursor:pointer">⚡ Delete trade</button>
+</form>
+<% } %>
+<% if (it.trade.status === 'deleted') { %>
+<p class="error">⚡ This trade has been deleted. It is only visible in God Mode and does not contribute to positions.</p>
+<% } %>
 
 <% if (it.confirmUrl) { %>
 <h2>Confirm / Reject</h2>

@@ -46,10 +46,13 @@ router.get('/', (req, res) => {
 
   const { status, player_id } = req.query;
 
-  // Amendments that never completed (pending/superseded/expired/rejected) are not shown
-  // as separate rows — they surface as inline badges on the original trade.
-  // Only confirmed amendments graduate to their own blotter row.
-  let sql = `SELECT * FROM trades WHERE (amended_from_id IS NULL OR status = 'confirmed')`;
+  const godMode = req.cookies.wctg_god === '1';
+
+  // Non-god-mode: deleted trades are hidden entirely.
+  // Amendments that never completed surface as inline badges; only confirmed amendments get their own row.
+  let sql = godMode
+    ? `SELECT * FROM trades WHERE (amended_from_id IS NULL OR status IN ('confirmed','deleted'))`
+    : `SELECT * FROM trades WHERE (amended_from_id IS NULL OR status = 'confirmed') AND status != 'deleted'`;
   const params = [];
   if (status)    { sql += ` AND status = ?`; params.push(status); }
   if (player_id) { sql += ` AND (writer_id = ? OR counterparty_id = ?)`; params.push(parseInt(player_id), parseInt(player_id)); }
@@ -58,15 +61,19 @@ router.get('/', (req, res) => {
   const trades  = db.all(sql, params).map(t => enrichTrade(t, db));
   const players = db.all('SELECT * FROM players ORDER BY display_order');
 
-  const statusOptions = ['pending', 'confirmed', 'rejected', 'amended', 'superseded', 'expired'];
-  res.render('blotter', { title: 'Blotter', trades, players, filters: { status: status || '', player_id: player_id || '' }, statusOptions });
+  const statusOptions = ['pending', 'confirmed', 'rejected', 'amended', 'superseded', 'expired', ...(godMode ? ['deleted'] : [])];
+  res.render('blotter', { title: 'Blotter', trades, players, filters: { status: status || '', player_id: player_id || '' }, statusOptions, godMode });
 });
 
 router.get('/:id', (req, res) => {
-  const db = getDb(req);
+  const db      = getDb(req);
+  const godMode = req.cookies.wctg_god === '1';
   expirePending(db);
   const trade = db.get('SELECT * FROM trades WHERE id=?', [parseInt(req.params.id)]);
   if (!trade) return res.status(404).render('error', { title: 'Not Found', message: 'Trade not found.' });
+  if (trade.status === 'deleted' && !godMode) {
+    return res.status(404).render('error', { title: 'Not Found', message: 'Trade not found.' });
+  }
 
   enrichTrade(trade, db);
 
@@ -81,7 +88,18 @@ router.get('/:id', (req, res) => {
   const host       = `${req.protocol}://${req.get('host')}`;
   const confirmUrl = trade.status === 'pending' ? `${host}/trade/${trade.id}/confirm?token=${trade.confirm_token}` : null;
   const rejectUrl  = trade.status === 'pending' ? `${host}/trade/${trade.id}/reject?token=${trade.reject_token}`  : null;
-  res.render('trade_detail', { title: `Trade #${trade.id}`, trade, chain, confirmUrl, rejectUrl });
+  res.render('trade_detail', { title: `Trade #${trade.id}`, trade, chain, confirmUrl, rejectUrl, godMode });
+});
+
+router.post('/:id/delete', (req, res) => {
+  if (req.cookies.wctg_god !== '1') {
+    return res.status(403).render('error', { title: 'God Mode required', message: 'Only God Mode can delete trades.' });
+  }
+  const db    = getDb(req);
+  const trade = db.get('SELECT * FROM trades WHERE id=?', [parseInt(req.params.id)]);
+  if (!trade) return res.status(404).render('error', { title: 'Not Found', message: 'Trade not found.' });
+  db.run(`UPDATE trades SET status='deleted', updated_at=datetime('now') WHERE id=?`, [trade.id]);
+  res.redirect('/blotter');
 });
 
 function checkAmendAuth(req, trade, res) {
