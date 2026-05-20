@@ -1,0 +1,4 @@
+<% layout('./layout') %>
+<h1><%= it.title %></h1>
+<p class="error"><%= it.message %></p>
+<p><a href="/">Home</a></p>

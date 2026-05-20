@@ -1,0 +1,4 @@
+<% layout('./layout') %>
+<h1>Trade #<%= it.trade.id %> rejected</h1>
+<p class="error">This trade has been rejected.</p>
+<p><a href="/blotter">View blotter</a></p>

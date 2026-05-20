@@ -1,0 +1,64 @@
+<% layout('./layout') %>
+<h1>Admin</h1>
+
+<% if (it.error) { %><p class="error"><%= it.error %></p><% } %>
+<% if (it.success) { %><p class="success"><%= it.success %></p><% } %>
+
+<h2>Snapshots</h2>
+<form method="POST" action="/admin/snapshot" class="inline-form">
+  <input type="text" name="label" placeholder="Label (optional)">
+  <button type="submit">Take snapshot now</button>
+</form>
+
+<% if (it.snapshots.length) { %>
+<table class="blotter-table">
+  <thead><tr><th>#</th><th>Label</th><th>Date</th><th></th></tr></thead>
+  <tbody>
+  <% for (const s of it.snapshots) { %>
+  <tr>
+    <td><%= s.id %></td>
+    <td><%= s.label || '' %></td>
+    <td><%= s.created_at %></td>
+    <td>
+      <form method="POST" action="/admin/snapshot/<%= s.id %>/revert" onsubmit="return confirm('Restore snapshot #<%= s.id %>? The current state will be snapshotted first so you can undo.')">
+        <button type="submit">Restore</button>
+      </form>
+    </td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+<% } else { %>
+<p>No snapshots yet.</p>
+<% } %>
+
+<h2>Excel export / import</h2>
+<p>
+  <a href="/admin/export.xlsx" class="btn-primary">Download database as Excel</a>
+</p>
+<p>Upload a workbook in the same format to overwrite the database. A snapshot is taken automatically before the import so you can restore if something goes wrong.</p>
+<form method="POST" action="/admin/import" enctype="multipart/form-data" onsubmit="return confirm('This will overwrite the entire database. A snapshot is taken first. Continue?')">
+  <input type="file" name="file" accept=".xlsx" required>
+  <button type="submit">Import and overwrite</button>
+</form>
+
+<h2>Suspicious Activity Report</h2>
+<% if (!it.sar.length) { %>
+<p>No login switches recorded.</p>
+<% } else { %>
+<p>Logged whenever someone switches from one player identity to another.</p>
+<table class="blotter-table">
+  <thead><tr><th>When</th><th>Was</th><th>Switched to</th><th>IP</th><th>User agent</th></tr></thead>
+  <tbody>
+  <% for (const e of it.sar) { %>
+  <tr>
+    <td><%= e.created_at %></td>
+    <td><%= e.old_player %></td>
+    <td><strong><%= e.new_player %></strong></td>
+    <td><code><%= e.ip_address || '—' %></code></td>
+    <td style="font-size:0.75rem;max-width:300px;word-break:break-all"><%= e.user_agent || '—' %></td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+<% } %>

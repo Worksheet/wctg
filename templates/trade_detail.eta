@@ -1,0 +1,64 @@
+<% layout('./layout') %>
+<h1>Trade #<%= it.trade.id %></h1>
+
+<table class="detail-table">
+  <tr><th>Writer</th><td><%= it.trade.writer.name %></td></tr>
+  <tr><th>Counterparty</th><td><%= it.trade.counterparty.name %></td></tr>
+  <tr><th>Status</th><td><span class="badge badge-<%= it.trade.status %>"><%= it.trade.status %></span></td></tr>
+  <tr><th>Date</th><td><%= it.trade.created_at %></td></tr>
+  <% if (it.trade.note) { %><tr><th>Note</th><td><%= it.trade.note %></td></tr><% } %>
+  <% if (it.trade.amended_from_id) { %><tr><th>Amends</th><td><a href="/blotter/<%= it.trade.amended_from_id %>">#<%= it.trade.amended_from_id %></a></td></tr><% } %>
+  <% if (it.trade.pendingAmendment) { %>
+  <tr>
+    <th>Pending amendment</th>
+    <td>
+      <a href="/blotter/<%= it.trade.pendingAmendment.id %>">#<%= it.trade.pendingAmendment.id %></a>
+      <span class="badge badge-amendment-pending">Amendment pending</span>
+      <% if (it.trade.pendingAmendment.expires_at) { %>— expires <%= it.trade.pendingAmendment.expires_at.slice(0,16) %><% } %>
+    </td>
+  </tr>
+  <% } %>
+</table>
+
+<h2>Legs</h2>
+<table class="blotter-table">
+  <thead><tr><th>Side</th><th>Team</th><th>Qty</th><th>Type</th><th>Consideration</th></tr></thead>
+  <tbody>
+  <% for (const l of it.trade.legs) { %>
+    <tr>
+      <td class="leg-<%= l.side.toLowerCase() %>"><%= l.side %></td>
+      <td><%= l.team_name %></td>
+      <td><%= l.quantity %></td>
+      <td><%= l.leg_type %></td>
+      <td>
+        <% if (l.leg_type === 'cash') { %>£<%= l.cash_amount %><% } %>
+        <% if (l.leg_type === 'swap') { %><%= l.swap_quantity %>× <%= l.swap_team_name %><% } %>
+      </td>
+    </tr>
+  <% } %>
+  </tbody>
+</table>
+
+<% if (it.trade.status === 'pending' || it.trade.status === 'confirmed') { %>
+<p><a href="/blotter/<%= it.trade.id %>/amend" class="btn-primary">Amend this trade</a></p>
+<% } %>
+
+<% if (it.confirmUrl) { %>
+<h2>Confirm / Reject</h2>
+<p>Copy and share these links with the counterparty, or use them directly if you are the counterparty:</p>
+<table class="detail-table">
+  <tr><th>Confirm</th><td><code style="word-break:break-all"><%= it.confirmUrl %></code></td></tr>
+  <tr><th>Reject</th> <td><code style="word-break:break-all"><%= it.rejectUrl %></code></td></tr>
+</table>
+<% } %>
+
+<% if (it.chain.length) { %>
+<h2>Amendment history</h2>
+<ul>
+  <% for (const t of it.chain) { %>
+  <li><a href="/blotter/<%= t.id %>">#<%= t.id %></a> — <span class="badge badge-<%= t.status %>"><%= t.status %></span> <%= t.created_at ? t.created_at.slice(0,10) : '' %></li>
+  <% } %>
+</ul>
+<% } %>
+
+<p><a href="/blotter">← Blotter</a></p>

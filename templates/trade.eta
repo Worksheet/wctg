@@ -1,0 +1,100 @@
+<% layout('./layout') %>
+
+<section class="login-section">
+  <span class="login-label">Login:</span>
+  <form method="POST" action="/login" style="display:inline">
+    <input type="hidden" name="next" value="/trade">
+    <select name="player_id" onchange="this.form.submit()" title="Select your name">
+      <option value="">— who are you? —</option>
+      <% for (const p of it.players) { %>
+      <option value="<%= p.id %>" <%= it.currentPlayer && it.currentPlayer.id === p.id ? 'selected' : '' %>><%= p.name %></option>
+      <% } %>
+    </select>
+  </form>
+  <% if (it.currentPlayer) { %>
+  <span class="login-status">Logged in as <strong><%= it.currentPlayer.name %></strong></span>
+  <% } %>
+</section>
+
+<h1>New Trade</h1>
+
+<% if (it.error) { %>
+<p class="error"><%= it.error %></p>
+<% } %>
+
+<form method="POST" action="/trade" id="trade-form">
+  <div class="form-row">
+    <label>Writer
+      <select name="writer_id" required>
+        <option value="">— select —</option>
+        <% for (const p of it.players) { %>
+        <option value="<%= p.id %>" <%= it.currentPlayer && it.currentPlayer.id === p.id ? 'selected' : '' %>><%= p.name %></option>
+        <% } %>
+      </select>
+    </label>
+    <label>Counterparty
+      <select name="counterparty_id" required>
+        <option value="">— select —</option>
+        <% for (const p of it.players) { %>
+        <option value="<%= p.id %>"><%= p.name %></option>
+        <% } %>
+      </select>
+    </label>
+  </div>
+
+  <div id="legs-container"></div>
+
+  <button type="button" id="add-leg">+ Add leg</button>
+
+  <div class="form-row" style="margin-top:1rem">
+    <label>Note (optional)
+      <input type="text" name="note" maxlength="200" style="width:100%">
+    </label>
+  </div>
+
+  <button type="submit" class="btn-primary" style="margin-top:1rem">Submit trade</button>
+</form>
+
+<dialog id="disclaimer-dialog">
+  <p><strong>Liability warning</strong></p>
+  <p>By entering into this trade you may take on liabilities at the end of the tournament which you will be responsible for settling. Capiche?</p>
+  <form method="dialog">
+    <button id="disclaimer-confirm" value="confirm">I understand — submit</button>
+    <button value="cancel">Cancel</button>
+  </form>
+</dialog>
+
+<template id="leg-template">
+  <div class="leg-row">
+    <select name="side" class="side-select">
+      <option value="BUY">BUY</option>
+      <option value="SELL">SELL</option>
+    </select>
+    <select name="team_id" class="team-select">
+      <option value="">— team —</option>
+      <% for (const t of it.teams) { %>
+      <option value="<%= t.id %>"><%= t.name %></option>
+      <% } %>
+    </select>
+    <input type="number" name="quantity" value="1" min="1" step="1" class="qty-input">
+    <select name="leg_type" class="legtype-select">
+      <option value="cash">Cash</option>
+      <option value="swap">Swap</option>
+    </select>
+    <span class="cash-fields">
+      £<input type="number" name="cash_amount" value="0" min="0" step="1" class="cash-input">
+    </span>
+    <span class="swap-fields" style="display:none">
+      <select name="swap_team_id" class="swap-team-select">
+        <option value="">— swap team —</option>
+        <% for (const t of it.teams) { %>
+        <option value="<%= t.id %>"><%= t.name %></option>
+        <% } %>
+      </select>
+      <input type="number" name="swap_quantity" value="1" min="1" step="1" class="swap-qty-input">
+    </span>
+    <button type="button" class="remove-leg">✕</button>
+  </div>
+</template>
+
+<script src="/leg-builder.js"></script>

@@ -1,0 +1,60 @@
+<% layout('./layout') %>
+<h1>Players</h1>
+
+<% if (it.error) { %><p class="error"><%= it.error %></p><% } %>
+<% if (it.success) { %><p class="success"><%= it.success %></p><% } %>
+
+<table class="blotter-table">
+  <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Ntfy topic</th><th>Order</th><th></th></tr></thead>
+  <tbody>
+  <% for (const p of it.players) { %>
+  <tr>
+    <td><%= p.id %></td>
+    <td><form method="POST" action="/players/<%= p.id %>" style="display:contents">
+      <input type="text" name="name" value="<%= p.name %>">
+    </td>
+    <td><input type="email" name="email" value="<%= p.email %>"></td>
+    <td><input type="text" name="ntfy_topic" value="<%= p.ntfy_topic || '' %>" placeholder="e.g. wctg-alice-a1b2"></td>
+    <td><%= p.display_order %></td>
+    <td><button type="submit">Save</button></form>
+    <form method="POST" action="/players/<%= p.id %>/delete" style="display:inline" onsubmit="return confirm('Delete <%= p.name %>?')">
+      <button type="submit">Delete</button>
+    </form></td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+
+<h2>Add player</h2>
+<form method="POST" action="/players" class="inline-form">
+  <input type="text" name="name" placeholder="Name" required>
+  <input type="email" name="email" placeholder="email@example.com" required>
+  <input type="text" name="ntfy_topic" placeholder="Ntfy topic (optional)">
+  <button type="submit">Add</button>
+</form>
+
+<h2>Setting up Ntfy push notifications</h2>
+<p>
+  Ntfy lets trade confirmations appear as push notifications on your phone or desktop — no email needed.
+  Each player needs a unique private topic. Choose something hard to guess, like <code>wctg-alice-4randomletters</code>.
+</p>
+<ol>
+  <li>
+    <strong>Install the Ntfy app</strong> — available on
+    <a href="https://play.google.com/store/apps/details?id=io.heckel.ntfy" target="_blank">Android (Play Store)</a>,
+    <a href="https://apps.apple.com/app/ntfy/id1625396347" target="_blank">iOS (App Store)</a>,
+    or use the web at <a href="https://ntfy.sh" target="_blank">ntfy.sh</a>.
+  </li>
+  <li>
+    <strong>Subscribe to your topic</strong> — open the app, tap the + button, and enter your topic name
+    (e.g. <code>wctg-alice-a1b2</code>). No account required.
+  </li>
+  <li>
+    <strong>Enter the topic here</strong> — edit your player row above and paste the topic name into the
+    Ntfy topic field, then Save.
+  </li>
+</ol>
+<p>
+  When someone submits a trade with you as counterparty, your phone will buzz with the trade details and
+  Confirm / Reject buttons. If no topic is set, a mailto: link is shown to the writer instead.
+</p>

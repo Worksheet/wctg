@@ -1,0 +1,20 @@
+<% layout('./layout') %>
+
+<p class="error" style="font-size:1.05rem;padding:0.75rem 1rem">
+  <%= it.writer.name.split(' ')[0] %>, you are supposed to send this link to <strong><%= it.counterparty.name %></strong> — not click it yourself!
+</p>
+
+<p>Copy and paste these links to send to <strong><%= it.counterparty.name %></strong>:</p>
+
+<table class="detail-table">
+  <tr>
+    <th>Confirm</th>
+    <td><code style="word-break:break-all"><%= it.confirmUrl %></code></td>
+  </tr>
+  <tr>
+    <th>Reject</th>
+    <td><code style="word-break:break-all"><%= it.rejectUrl %></code></td>
+  </tr>
+</table>
+
+<p style="margin-top:1rem"><a href="/trade">← Back to new trade</a></p>

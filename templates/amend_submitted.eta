@@ -1,0 +1,51 @@
+<% layout('./layout') %>
+<h1>Amendment submitted</h1>
+
+<p>Trade #<%= it.originalId %> has been amended. New trade #<%= it.newId %> is pending confirmation.</p>
+
+<% if (it.autoSide === 'writer') { %>
+<p class="success">Your agreement as <strong>writer</strong> has been automatically recorded. Awaiting <strong><%= it.counterparty.name %></strong> to confirm or reject.</p>
+<% } else if (it.autoSide === 'counterparty') { %>
+<p class="success">Your agreement as <strong>counterparty</strong> has been automatically recorded. Awaiting <strong><%= it.writer.name %></strong> to confirm or reject.</p>
+<% } %>
+
+<h2>Notify parties</h2>
+<ul>
+  <% if (it.autoSide !== 'writer') { %>
+  <li>
+    <% if (it.writer.ntfy_topic) { %>
+    Push notification sent to <strong><%= it.writer.name %></strong>.
+    <% } else { %>
+    <a href="<%= it.writerMailto %>">Open email to <%= it.writer.name %> →</a>
+    <% } %>
+  </li>
+  <% } else { %>
+  <li><strong><%= it.writer.name %></strong> — auto-confirmed (submitted the amendment).</li>
+  <% } %>
+  <% if (it.autoSide !== 'counterparty') { %>
+  <li>
+    <% if (it.counterparty.ntfy_topic) { %>
+    Push notification sent to <strong><%= it.counterparty.name %></strong>.
+    <% } else { %>
+    <a href="<%= it.cpMailto %>">Open email to <%= it.counterparty.name %> →</a>
+    <% } %>
+  </li>
+  <% } else { %>
+  <li><strong><%= it.counterparty.name %></strong> — auto-confirmed (submitted the amendment).</li>
+  <% } %>
+</ul>
+
+<h2>Manual links</h2>
+<p>Copy and paste these if needed:</p>
+<table class="detail-table">
+  <tr>
+    <th>Confirm</th>
+    <td><code style="word-break:break-all"><%= it.confirmUrl %></code></td>
+  </tr>
+  <tr>
+    <th>Reject</th>
+    <td><code style="word-break:break-all"><%= it.rejectUrl %></code></td>
+  </tr>
+</table>
+
+<p style="margin-top:1rem"><a href="/blotter/<%= it.newId %>">View new trade</a> | <a href="/blotter">Blotter</a></p>

@@ -1,0 +1,16 @@
+<% layout('./layout') %>
+<h1>Trade #<%= it.trade.id %> submitted</h1>
+
+<p>Trade is <strong>pending</strong> — waiting for <%= it.counterparty.name %> to confirm.</p>
+
+<% if (it.counterparty.ntfy_topic) { %>
+<p>A push notification has been sent to <%= it.counterparty.name %>.</p>
+<% } else { %>
+<p>No Ntfy topic configured for <%= it.counterparty.name %>. Send them the email below:</p>
+<a class="mailto-btn" href="<%= it.mailtoUrl %>">Open email to <%= it.counterparty.name %> →</a>
+<% } %>
+
+<p>Or share links directly:</p>
+<p><a href="<%= it.confirmUrl %>">Confirm link</a> | <a href="<%= it.rejectUrl %>">Reject link</a></p>
+
+<p><a href="/blotter">← Back to blotter</a> | <a href="/trade">New trade</a></p>

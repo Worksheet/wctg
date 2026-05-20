@@ -1,0 +1,70 @@
+<% layout('./layout') %>
+<h1>Amend Trade #<%= it.trade.id %></h1>
+
+<p>Writer: <strong><%= it.trade.writer.name %></strong> &mdash; Counterparty: <strong><%= it.trade.counterparty.name %></strong> (not editable)</p>
+
+<% if (it.error) { %>
+<p class="error"><%= it.error %></p>
+<% } %>
+
+<form method="POST" action="/blotter/<%= it.trade.id %>/amend" id="trade-form">
+  <div id="legs-container">
+    <!-- pre-filled by JS -->
+  </div>
+
+  <button type="button" id="add-leg">+ Add leg</button>
+
+  <div class="form-row" style="margin-top:1rem">
+    <label>Note (optional)
+      <input type="text" name="note" maxlength="200" value="<%= it.trade.note || '' %>" style="width:100%">
+    </label>
+  </div>
+
+  <button type="submit" class="btn-primary" style="margin-top:1rem">Submit amendment</button>
+</form>
+
+<template id="leg-template">
+  <div class="leg-row">
+    <select name="side" class="side-select">
+      <option value="BUY">BUY</option>
+      <option value="SELL">SELL</option>
+    </select>
+    <select name="team_id" class="team-select">
+      <option value="">— team —</option>
+      <% for (const t of it.teams) { %>
+      <option value="<%= t.id %>"><%= t.name %></option>
+      <% } %>
+    </select>
+    <input type="number" name="quantity" value="1" min="1" step="1" class="qty-input">
+    <select name="leg_type" class="legtype-select">
+      <option value="cash">Cash</option>
+      <option value="swap">Swap</option>
+    </select>
+    <span class="cash-fields">
+      £<input type="number" name="cash_amount" value="0" min="0" step="1" class="cash-input">
+    </span>
+    <span class="swap-fields" style="display:none">
+      <select name="swap_team_id" class="swap-team-select">
+        <option value="">— swap team —</option>
+        <% for (const t of it.teams) { %>
+        <option value="<%= t.id %>"><%= t.name %></option>
+        <% } %>
+      </select>
+      <input type="number" name="swap_quantity" value="1" min="1" step="1" class="swap-qty-input">
+    </span>
+    <button type="button" class="remove-leg">✕</button>
+  </div>
+</template>
+
+<script>
+const PREFILL_LEGS = <%~ JSON.stringify(it.trade.legs.map(l => ({
+  side: l.side,
+  team_id: l.team_id,
+  quantity: l.quantity,
+  leg_type: l.leg_type,
+  cash_amount: l.cash_amount,
+  swap_team_id: l.swap_team_id,
+  swap_quantity: l.swap_quantity,
+}))) %>;
+</script>
+<script src="/leg-builder.js"></script>

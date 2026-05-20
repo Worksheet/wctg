@@ -1,0 +1,32 @@
+<% layout('./layout') %>
+<h1>Positions</h1>
+<p>Confirmed trades only. Zero positions omitted.</p>
+
+<div class="positions-wrap">
+<table class="positions-table">
+  <thead>
+    <tr>
+      <th>Team</th>
+      <% for (const p of it.players) { %>
+      <th><%= p.name.split(' ')[0] %></th>
+      <% } %>
+    </tr>
+  </thead>
+  <tbody>
+  <% for (const team of it.teams) { %>
+    <%
+      const row = it.players.map(p => (it.pos[team.id] || {})[p.id] || 0);
+      const anyNonZero = row.some(v => v !== 0);
+    %>
+    <% if (anyNonZero) { %>
+    <tr>
+      <td class="team-name"><%= team.name %></td>
+      <% for (const v of row) { %>
+      <td class="<%= v > 0 ? 'pos-long' : v < 0 ? 'pos-short' : '' %>"><%= v !== 0 ? v : '' %></td>
+      <% } %>
+    </tr>
+    <% } %>
+  <% } %>
+  </tbody>
+</table>
+</div>

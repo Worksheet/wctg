@@ -1,0 +1,7 @@
+<% layout('./layout') %>
+<h1>Admin login</h1>
+<% if (it.error) { %><p class="error"><%= it.error %></p><% } %>
+<form method="POST" action="/admin/login">
+  <label>Password <input type="password" name="password" autofocus></label>
+  <button type="submit" class="btn-primary">Login</button>
+</form>

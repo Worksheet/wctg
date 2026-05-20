@@ -1,0 +1,157 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 14px;
+  background: #f5f5f0;
+  color: #111;
+  margin: 0;
+}
+
+nav {
+  background: #111;
+  color: #eee;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+nav a { color: #ccc; text-decoration: none; }
+nav a:hover { color: #fff; }
+.nav-brand { font-weight: bold; font-size: 1.1rem; color: #fff; margin-right: 0.5rem; }
+
+main {
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+
+h1 { font-size: 1.3rem; margin: 0 0 1rem; border-bottom: 2px solid #111; padding-bottom: 0.3rem; }
+h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
+h3 { font-size: 1rem; margin: 1rem 0 0.4rem; }
+
+a { color: #005a9c; }
+a:hover { color: #003366; }
+
+.error   { color: #c00; background: #fff0f0; border: 1px solid #fcc; padding: 0.4rem 0.6rem; margin: 0.5rem 0; }
+.success { color: #060; background: #f0fff0; border: 1px solid #cfc; padding: 0.4rem 0.6rem; margin: 0.5rem 0; }
+
+button, .btn-primary {
+  background: #111;
+  color: #fff;
+  border: none;
+  padding: 0.3rem 0.8rem;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+button:hover, .btn-primary:hover { background: #333; }
+a.btn-primary { display: inline-block; text-decoration: none; }
+a.mailto-btn {
+  display: inline-block;
+  background: #005a9c;
+  color: #fff;
+  padding: 0.4rem 1rem;
+  text-decoration: none;
+  font-size: 1rem;
+  margin: 0.5rem 0;
+}
+a.mailto-btn:hover { background: #003366; }
+
+input[type="text"], input[type="email"], input[type="number"], input[type="password"], select {
+  font-family: inherit;
+  font-size: 0.9rem;
+  border: 1px solid #999;
+  padding: 0.25rem 0.4rem;
+  background: #fff;
+}
+input[type="number"] { width: 4.5rem; }
+
+.form-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.form-row label { display: flex; flex-direction: column; gap: 0.2rem; }
+
+.inline-form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.filter-form { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; }
+
+/* Leg builder */
+.leg-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  border: 1px solid #ccc;
+  padding: 0.4rem;
+  margin-bottom: 0.4rem;
+  background: #fff;
+}
+.remove-leg { background: #999; font-size: 0.75rem; padding: 0.2rem 0.5rem; }
+.remove-leg:hover { background: #c00; }
+
+/* Tables */
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #bbb; padding: 0.3rem 0.5rem; text-align: left; vertical-align: middle; }
+th { background: #e8e8e0; font-weight: bold; }
+tr:nth-child(even) { background: #fafaf5; }
+
+.blotter-table td { font-size: 0.85rem; }
+
+.detail-table { max-width: 500px; }
+.detail-table th { width: 130px; }
+
+/* Status badges */
+.badge { padding: 0.1rem 0.4rem; font-size: 0.8rem; font-weight: bold; }
+.badge-pending            { background: #ffe08a; color: #7a5800; }
+.badge-confirmed          { background: #c8f5c8; color: #1a5e1a; }
+.badge-rejected           { background: #fcc; color: #800; text-decoration: line-through; }
+.badge-amended            { background: #e0e0e0; color: #555; }
+.badge-amendment-pending  { background: #ffd580; color: #7a4400; border: 1px solid #e0a020; }
+.badge-superseded         { background: #e8e0ff; color: #446; text-decoration: line-through; }
+.badge-expired            { background: #f0e8e8; color: #866; text-decoration: line-through; }
+
+/* Blotter row tints */
+tr.status-rejected         td { opacity: 0.6; }
+tr.status-amended          td { opacity: 0.7; background: #f0f0f0 !important; }
+tr.status-amendment-pending td { background: #fffbf0 !important; }
+tr.status-superseded       td { opacity: 0.5; background: #f5f0ff !important; }
+tr.status-expired          td { opacity: 0.5; background: #fff5f5 !important; }
+
+/* Leg display */
+.leg { font-size: 0.8rem; display: inline-block; margin-right: 0.3rem; }
+.leg-buy  { color: #1a5e1a; }
+.leg-sell { color: #800; }
+
+/* Positions table */
+.positions-wrap { overflow-x: auto; }
+.positions-table { font-size: 0.85rem; }
+.positions-table th, .positions-table td { min-width: 2.5rem; text-align: center; }
+.positions-table .team-name { text-align: left; min-width: 150px; }
+.pos-long  { background: #d0f0d0; color: #1a5e1a; font-weight: bold; }
+.pos-short { background: #fdd; color: #800; font-weight: bold; }
+
+/* Dialog */
+dialog {
+  border: 2px solid #111;
+  padding: 1.5rem;
+  max-width: 400px;
+  font-family: inherit;
+}
+dialog::backdrop { background: rgba(0,0,0,0.4); }
+
+/* Login section */
+.login-section {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #e8e8e0;
+  border: 1px solid #bbb;
+  padding: 0.4rem 0.7rem;
+  margin-bottom: 1.2rem;
+  flex-wrap: wrap;
+}
+.login-label { font-weight: bold; font-size: 0.9rem; }
+.login-status { font-size: 0.9rem; color: #333; }
+.login-section select { font-size: 0.9rem; }
+
+/* Pre */
+pre { background: #fff; border: 1px solid #ccc; padding: 0.75rem; font-size: 0.8rem; overflow-x: auto; white-space: pre-wrap; }

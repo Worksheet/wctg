@@ -1,0 +1,78 @@
+<% layout('./layout') %>
+<h1>Trade #<%= it.trade.id %> — respond</h1>
+
+<p>Written by <strong><%= it.writer.name %></strong>, addressed to <strong><%= it.counterparty.name %></strong>.</p>
+
+<table class="blotter-table" style="max-width:600px;margin-bottom:1.5rem">
+  <thead><tr><th>Side</th><th>Team</th><th>Qty</th><th>Consideration</th></tr></thead>
+  <tbody>
+  <% for (const l of it.legs) { %>
+  <tr>
+    <td class="leg-<%= l.side.toLowerCase() %>"><%= l.side %></td>
+    <td><%= l.team_name %></td>
+    <td><%= l.quantity %></td>
+    <td><% if (l.leg_type === 'cash') { %>£<%= l.cash_amount %><% } else { %><%= l.swap_quantity %>× <%= l.swap_team_name %><% } %></td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+
+<%
+  const cookie = it.cookiePlayer;
+  const isWriter       = cookie && cookie.id === it.trade.writer_id;
+  const isCounterparty = cookie && cookie.id === it.trade.counterparty_id;
+  const writerFirst    = it.writer.name.split(' ')[0];
+%>
+
+<% if (it.identityError === '__writer_self__') { %>
+
+<p class="error" style="font-size:1.05rem">
+  <%= writerFirst %>, you are supposed to send this link to <strong><%= it.counterparty.name %></strong> — not click it yourself!
+</p>
+<p><a href="/trade">← Back to new trade</a></p>
+
+<% } else { %>
+
+<% if (it.identityError) { %>
+<p class="error"><%= it.identityError %></p>
+<% } %>
+
+<% if (isCounterparty) { %>
+
+  <p>Responding as <strong><%= cookie.name %></strong>.</p>
+  <form method="POST" action="/trade/<%= it.trade.id %>/<%= it.intent %>?token=<%= it.intent === 'confirm' ? it.trade.confirm_token : it.trade.reject_token %>">
+    <% if (it.intent === 'confirm') { %>
+    <button type="submit" class="btn-primary">Confirm trade</button>
+    <% } else { %>
+    <button type="submit" style="background:#800;color:#fff;border:none;padding:0.3rem 0.8rem;cursor:pointer;font-family:inherit">Reject trade</button>
+    <% } %>
+  </form>
+
+<% } else { %>
+
+  <p>Please confirm who you are before responding:</p>
+  <form method="POST" action="/trade/<%= it.trade.id %>/<%= it.intent %>?token=<%= it.intent === 'confirm' ? it.trade.confirm_token : it.trade.reject_token %>">
+    <div class="form-row" style="align-items:center">
+      <label>I am
+        <select name="player_id" required>
+          <option value="">— select your name —</option>
+          <% for (const p of it.players) { %>
+          <option value="<%= p.id %>"><%= p.name %></option>
+          <% } %>
+        </select>
+      </label>
+      <% if (it.intent === 'confirm') { %>
+      <button type="submit" class="btn-primary">Confirm trade</button>
+      <% } else { %>
+      <button type="submit" style="background:#800;color:#fff;border:none;padding:0.3rem 0.8rem;cursor:pointer;font-family:inherit">Reject trade</button>
+      <% } %>
+    </div>
+  </form>
+  <% if (!cookie) { %>
+  <p style="font-size:0.85rem;color:#666;margin-top:0.5rem">
+    Tip: <a href="/trade">log in on the trade page</a> so you don't have to select your name here each time.
+  </p>
+  <% } %>
+
+<% } %>
+<% } %>

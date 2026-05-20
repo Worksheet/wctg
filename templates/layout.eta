@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title><%= it.title %> — WCTG</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <span class="nav-brand">⚽ WCTG</span>
+  <a href="/trade">New Trade</a>
+  <a href="/blotter">Blotter</a>
+  <a href="/positions">Positions</a>
+  <a href="/report">Report</a>
+  <a href="/players">Players</a>
+  <a href="/admin">Admin</a>
+</nav>
+<main>
+<%~ it.body %>
+</main>
+</body>
+</html>

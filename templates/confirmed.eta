@@ -1,0 +1,4 @@
+<% layout('./layout') %>
+<h1>Trade #<%= it.trade.id %> confirmed</h1>
+<p class="success">This trade has been confirmed.</p>
+<p><a href="/blotter">View blotter</a></p>

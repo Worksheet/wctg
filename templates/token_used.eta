@@ -1,0 +1,4 @@
+<% layout('./layout') %>
+<h1>Link already used</h1>
+<p>Trade #<%= it.trade.id %> is already <strong><%= it.trade.status %></strong>. This link cannot be used again.</p>
+<p><a href="/blotter">View blotter</a></p>

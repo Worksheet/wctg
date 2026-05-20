@@ -1,0 +1,60 @@
+<% layout('./layout') %>
+<h1>Blotter</h1>
+
+<form class="filter-form" method="GET" action="/blotter">
+  <select name="status">
+    <option value="">All statuses</option>
+    <% for (const s of it.statusOptions) { %>
+    <option value="<%= s %>" <%= it.filters.status === s ? 'selected' : '' %>><%= s %></option>
+    <% } %>
+  </select>
+  <select name="player_id">
+    <option value="">All players</option>
+    <% for (const p of it.players) { %>
+    <option value="<%= p.id %>" <%= it.filters.player_id == p.id ? 'selected' : '' %>><%= p.name %></option>
+    <% } %>
+  </select>
+  <button type="submit">Filter</button>
+  <a href="/blotter">Clear</a>
+</form>
+
+<% if (!it.trades.length) { %>
+<p>No trades found.</p>
+<% } else { %>
+<table class="blotter-table">
+  <thead>
+    <tr>
+      <th>#</th><th>Writer</th><th>Counterparty</th><th>Legs</th><th>Status</th><th>Date</th><th></th>
+    </tr>
+  </thead>
+  <tbody>
+  <% for (const t of it.trades) { %>
+    <tr class="status-<%= t.status %>">
+      <td><a href="/blotter/<%= t.id %>">#<%= t.id %></a></td>
+      <td><%= t.writer.name %></td>
+      <td><%= t.counterparty.name %></td>
+      <td>
+        <% for (const l of t.legs) { %>
+          <span class="leg leg-<%= l.side.toLowerCase() %>"><%= l.side %> <%= l.quantity %>× <%= l.team_name %>
+            <% if (l.leg_type === 'cash') { %>(£<%= l.cash_amount %>)<% } %>
+            <% if (l.leg_type === 'swap') { %>/ <%= l.swap_quantity %>× <%= l.swap_team_name %><% } %>
+          </span>
+        <% } %>
+      </td>
+      <td>
+        <span class="badge badge-<%= t.status %>"><%= t.status %></span>
+        <% if (t.pendingAmendment) { %>
+        <div style="margin-top:0.3rem"><span class="badge badge-amendment-pending" title="Expires <%= t.pendingAmendment.expires_at %>">Amendment pending <a href="/blotter/<%= t.pendingAmendment.id %>">#<%= t.pendingAmendment.id %></a></span></div>
+        <% } %>
+      </td>
+      <td><%= t.created_at ? t.created_at.slice(0,10) : '' %></td>
+      <td>
+        <% if (t.status === 'pending' || t.status === 'confirmed') { %>
+        <a href="/blotter/<%= t.id %>/amend">Amend</a>
+        <% } %>
+      </td>
+    </tr>
+  <% } %>
+  </tbody>
+</table>
+<% } %>
