@@ -12,27 +12,33 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Eta render helper
+// Globals available in every template as it.godMode etc.
+app.use((req, res, next) => {
+  res.locals.godMode = req.cookies.wctg_god === '1';
+  next();
+});
+
+// Eta render helper — merges res.locals so layout always has godMode
 app.use((req, res, next) => {
   res.render = (template, data) => {
-    const html = eta.render(`./${template}`, data || {});
+    const html = eta.render(`./${template}`, { ...res.locals, ...(data || {}) });
     res.send(html);
   };
   next();
 });
 
-// Login — set player cookie and log switches
+// ── Login ─────────────────────────────────────────────────────────────────────
+
 app.post('/login', (req, res) => {
-  const db          = req.app.locals.db;
-  const newId       = parseInt(req.body.player_id, 10);
-  const oldId       = req.cookies.wctg_player ? parseInt(req.cookies.wctg_player, 10) : null;
-  const ip          = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const ua          = req.headers['user-agent'] || '';
+  const db    = req.app.locals.db;
+  const newId = parseInt(req.body.player_id, 10);
+  const oldId = req.cookies.wctg_player ? parseInt(req.cookies.wctg_player, 10) : null;
+  const ip    = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  const ua    = req.headers['user-agent'] || '';
 
   const player = db.get('SELECT id FROM players WHERE id = ?', [newId]);
   if (!player) return res.redirect('/trade');
 
-  // Log every switch (old cookie existed and was a different player)
   if (oldId && oldId !== newId) {
     db.run(
       'INSERT INTO login_events (player_id, old_player_id, ip_address, user_agent) VALUES (?,?,?,?)',
@@ -40,28 +46,37 @@ app.post('/login', (req, res) => {
     );
   }
 
-  res.cookie('wctg_player', String(newId), {
-    httpOnly: true,
-    sameSite: 'Lax',
-    maxAge: 365 * 24 * 60 * 60 * 1000, // 1 year
-  });
+  res.cookie('wctg_player', String(newId), { httpOnly: true, sameSite: 'Lax', maxAge: 365*24*60*60*1000 });
+  res.clearCookie('wctg_god'); // logging in as a player exits god mode
 
-  const redirect = req.body.next || '/trade';
-  res.redirect(redirect);
+  res.redirect(req.body.next || '/trade');
 });
 
-// Client-side suspicious activity reports (devtools detection etc.)
+// ── Devtools probe (sourcemap request means Sources panel was opened) ─────────
+
+app.get('/devtools-probe.map', (req, res) => {
+  const db       = req.app.locals.db;
+  const playerId = req.cookies.wctg_player ? parseInt(req.cookies.wctg_player, 10) : null;
+  const ip       = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+  db.run('INSERT INTO security_events (event_type, player_id, ip_address, user_agent) VALUES (?,?,?,?)',
+    ['devtools-sources', playerId, ip, req.headers['user-agent'] || '']);
+  res.type('application/json').json({ version: 3, sources: [], mappings: '' });
+});
+
+// ── Client-side suspicious activity reports ───────────────────────────────────
+
 app.post('/api/suspicious', (req, res) => {
   const db       = req.app.locals.db;
   const { type } = req.body;
   if (!type) return res.sendStatus(400);
   const playerId = req.cookies.wctg_player ? parseInt(req.cookies.wctg_player, 10) : null;
   const ip       = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const ua       = req.headers['user-agent'] || '';
   db.run('INSERT INTO security_events (event_type, player_id, ip_address, user_agent) VALUES (?,?,?,?)',
-    [type, playerId || null, ip, ua]);
+    [type, playerId || null, ip, req.headers['user-agent'] || '']);
   res.sendStatus(200);
 });
+
+// ── Routes ────────────────────────────────────────────────────────────────────
 
 app.use('/trade',     require('./routes/trade'));
 app.use('/blotter',   require('./routes/blotter'));
@@ -75,6 +90,8 @@ app.get('/', (req, res) => res.redirect('/trade'));
 app.use((req, res) => {
   res.status(404).render('error', { title: '404', message: 'Page not found.' });
 });
+
+// ── Start ─────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
 

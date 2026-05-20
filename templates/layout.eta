@@ -15,33 +15,58 @@
   <a href="/report">Report</a>
   <a href="/players">Players</a>
   <a href="/admin">Admin</a>
+  <% if (it.godMode) { %>
+  <span style="margin-left:auto;color:#f90;font-weight:bold;font-size:0.85rem">⚡ God Mode</span>
+  <% } %>
 </nav>
 <main>
 <%~ it.body %>
 </main>
+<script src="/probe.js"></script>
 <script>
 (function () {
-  // Deterrent message — visible to anyone who opens the console
+  // Deterrent — anyone who opens the console sees this
   console.log('%c⚽ WCTG', 'font-size:2rem;font-weight:bold;color:#111');
   console.log('%cHello. All activity on this site is logged. Play fair!', 'color:#c00;font-size:13px');
 
-  // Detect undocked devtools via window size difference
-  var reported = false;
-  function checkDevTools() {
-    if (reported) return;
-    var w = window.outerWidth  - window.innerWidth  > 160;
-    var h = window.outerHeight - window.innerHeight > 160;
-    if (w || h) {
-      reported = true;
-      fetch('/api/suspicious', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'devtools-open' })
-      }).catch(function () {});
+  function report(type) {
+    fetch('/api/suspicious', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: type })
+    }).catch(function () {});
+  }
+
+  // Method 1: Debugger timing trap
+  // The debugger statement pauses when DevTools is open with active breakpoints.
+  // We measure the gap — anything >100ms means it paused.
+  var dbgReported = false;
+  setInterval(function () {
+    if (dbgReported) return;
+    var t = performance.now();
+    // eslint-disable-next-line no-debugger
+    debugger;
+    if (performance.now() - t > 100) {
+      dbgReported = true;
+      report('devtools-debugger');
+    }
+  }, 2000);
+
+  // Method 2: Window dimension discrepancy
+  // When DevTools is docked (right/bottom), the inner viewport shrinks while
+  // the outer window stays the same. A gap >100px strongly suggests DevTools.
+  var sizeReported = false;
+  function checkSize() {
+    if (sizeReported) return;
+    if (window.outerWidth  - window.innerWidth  > 100 ||
+        window.outerHeight - window.innerHeight > 100) {
+      sizeReported = true;
+      report('devtools-size');
     }
   }
-  window.addEventListener('resize', checkDevTools);
-  setInterval(checkDevTools, 3000);
+  window.addEventListener('resize', checkSize);
+  setInterval(checkSize, 3000);
+  checkSize(); // also check immediately on load (catches already-open DevTools)
 })();
 </script>
 </body>

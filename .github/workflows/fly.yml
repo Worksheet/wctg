@@ -21,3 +21,4 @@ jobs:
       - run: fly deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          WCTG_ADMIN_PASS: ${{ secrets.ADMIN_PANEL_PASS }}

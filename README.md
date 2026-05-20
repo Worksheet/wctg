@@ -48,8 +48,9 @@ Fly.io is the recommended host. It handles TLS automatically and the free tier i
 4. **Set environment variables**
    ```sh
    fly secrets set NTFY_BASE=https://ntfy.sh
+   fly secrets set WCTG_ADMIN_PASS=<choose>
    ```
-
+Where you need to `<choose>` your own passphrase to access the Admin panel.
 5. **Seed and deploy**
    ```sh
    fly deploy

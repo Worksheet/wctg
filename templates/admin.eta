@@ -20,6 +20,15 @@
 <% if (it.isAdmin) { %>
 <% if (it.error) { %><p class="error"><%= it.error %></p><% } %>
 
+<h2>God Mode</h2>
+<p>When enabled, all trades and amendments you make are auto-confirmed, and you can confirm or reject any trade regardless of which party you are.</p>
+<form method="POST" action="/admin/godmode" style="display:flex;align-items:center;gap:0.5rem">
+  <label style="cursor:pointer;display:flex;align-items:center;gap:0.4rem;font-size:1rem;color:<%= it.godMode ? '#f90' : '#111' %>">
+    <input type="checkbox" name="enable" value="1" <%= it.godMode ? 'checked' : '' %> onchange="this.form.submit()" style="accent-color:#f90;width:1.1rem;height:1.1rem;cursor:pointer">
+    <strong><%= it.godMode ? '⚡ God Mode is ON' : 'God Mode is OFF' %></strong>
+  </label>
+</form>
+
 <h2>Players</h2>
 <table class="blotter-table">
   <thead><tr><th>#</th><th>Name</th><th>Email</th><th>Ntfy topic</th><th></th></tr></thead>

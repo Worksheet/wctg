@@ -1,6 +1,10 @@
 <% layout('./layout') %>
 <h1>Trade #<%= it.trade.id %> submitted</h1>
 
+<% if (it.godMode) { %>
+<p class="success"><strong>⚡ God Mode:</strong> Trade auto-confirmed. No notification sent.</p>
+<p><a href="/blotter/<%= it.trade.id %>">View trade</a> | <a href="/trade">New trade</a></p>
+<% } else { %>
 <p>Trade is <strong>pending</strong> — waiting for <%= it.counterparty.name %> to confirm.</p>
 
 <% if (it.counterparty.ntfy_topic) { %>
@@ -14,3 +18,4 @@
 <p><a href="<%= it.confirmUrl %>">Confirm link</a> | <a href="<%= it.rejectUrl %>">Reject link</a></p>
 
 <p><a href="/blotter">← Back to blotter</a> | <a href="/trade">New trade</a></p>
+<% } %>

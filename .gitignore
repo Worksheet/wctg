@@ -4,3 +4,5 @@ node_modules/
 *.db
 *.db-journal
 plans/
+/server.log
+/server.err

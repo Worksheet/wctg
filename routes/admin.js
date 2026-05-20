@@ -4,7 +4,7 @@ const multer  = require('multer');
 const { exportWorkbook, importWorkbook } = require('../lib/excel');
 
 const upload    = multer({ storage: multer.memoryStorage() });
-const ADMIN_PASS = process.env.ADMIN_PASS || 'changeme';
+const ADMIN_PASS = process.env.WCTG_ADMIN_PASS || 'changeme';
 
 function getDb(req)   { return req.app.locals.db; }
 function isAdmin(req) { return req.cookies.wctg_admin === ADMIN_PASS; }
@@ -36,19 +36,19 @@ function logSecurityEvent(db, req, eventType, playerId, detail) {
 
 function getSar(db) {
   return db.all(`
-    SELECT created_at, 'identity-switch' AS event_type,
+    SELECT le.created_at, 'identity-switch' AS event_type,
            pn.name AS actor, 'Was: ' || po.name AS detail,
-           ip_address, user_agent
-    FROM login_events
-    JOIN players pn ON player_id     = pn.id
-    JOIN players po ON old_player_id = po.id
+           le.ip_address, le.user_agent
+    FROM login_events le
+    JOIN players pn ON le.player_id     = pn.id
+    JOIN players po ON le.old_player_id = po.id
     UNION ALL
     SELECT se.created_at, se.event_type,
            COALESCE(p.name, '—') AS actor, COALESCE(se.detail, '') AS detail,
            se.ip_address, se.user_agent
     FROM security_events se
     LEFT JOIN players p ON se.player_id = p.id
-    ORDER BY created_at DESC
+    ORDER BY 1 DESC
   `);
 }
 
@@ -59,6 +59,19 @@ function renderAdmin(res, db, req, extra = {}) {
   const players   = admin ? db.all('SELECT * FROM players ORDER BY display_order') : [];
   res.render('admin', { title: 'Admin', snapshots, sar, players, isAdmin: admin, loginError: false, error: null, ...extra });
 }
+
+// ── God mode (admin only) ─────────────────────────────────────────────────────
+
+router.post('/godmode', requireAdmin, (req, res) => {
+  if (req.body.enable === '1') {
+    res.cookie('wctg_god', '1', { httpOnly: true, sameSite: 'Lax' });
+    logSecurityEvent(getDb(req), req, 'god-mode-on',
+      req.cookies.wctg_player ? parseInt(req.cookies.wctg_player, 10) : null, null);
+  } else {
+    res.clearCookie('wctg_god');
+  }
+  res.redirect('/admin');
+});
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 

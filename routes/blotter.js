@@ -163,26 +163,37 @@ router.post('/:id/amend', async (req, res) => {
     [original.id]
   );
 
-  // Original keeps its current status — it stays in positions until amendment is confirmed
+  const godMode = req.cookies.wctg_god === '1';
 
-  // Detect which side the amender is on
+  // Detect which side the amender is on (ignored in god mode)
   const cookie = cookiePlayer(req);
   let autoSide = null;
-  if (cookie) {
-    if (cookie.id === original.writer_id)       autoSide = 'writer';
+  if (!godMode && cookie) {
+    if (cookie.id === original.writer_id)            autoSide = 'writer';
     else if (cookie.id === original.counterparty_id) autoSide = 'counterparty';
   }
 
   const confirmToken = generateToken();
   const rejectToken  = generateToken();
 
-  const { lastInsertRowid: newId } = db.run(
+  let newId;
+  if (godMode) {
+    ({ lastInsertRowid: newId } = db.run(
+      `INSERT INTO trades (writer_id, counterparty_id, status, confirm_token, reject_token,
+                           amended_from_id, note, auto_confirmed_side, expires_at)
+       VALUES (?, ?, 'confirmed', ?, ?, ?, ?, null, null)`,
+      [original.writer_id, original.counterparty_id, confirmToken, rejectToken, original.id, note || null]
+    ));
+    db.run(`UPDATE trades SET status='amended', updated_at=datetime('now') WHERE id=?`, [original.id]);
+    return res.redirect(`/blotter/${newId}`);
+  }
+
+  ({ lastInsertRowid: newId } = db.run(
     `INSERT INTO trades (writer_id, counterparty_id, status, confirm_token, reject_token,
                          amended_from_id, note, auto_confirmed_side, expires_at)
      VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, datetime('now', '+24 hours'))`,
-    [original.writer_id, original.counterparty_id, confirmToken, rejectToken,
-     original.id, note || null, autoSide]
-  );
+    [original.writer_id, original.counterparty_id, confirmToken, rejectToken, original.id, note || null, autoSide]
+  ));
 
   for (const leg of legs) {
     db.run(

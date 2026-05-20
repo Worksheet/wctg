@@ -64,13 +64,15 @@ router.post('/', async (req, res) => {
     return res.render('trade', { title: 'New Trade', players, teams, error: errors.join(' '), currentPlayer });
   }
 
+  const godMode      = req.cookies.wctg_god === '1';
   const confirmToken = generateToken();
   const rejectToken  = generateToken();
 
   const { lastInsertRowid: tradeId } = db.run(
     `INSERT INTO trades (writer_id, counterparty_id, status, confirm_token, reject_token, note)
-     VALUES (?, ?, 'pending', ?, ?, ?)`,
-    [parseInt(writer_id), parseInt(counterparty_id), confirmToken, rejectToken, note || null]
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [parseInt(writer_id), parseInt(counterparty_id), godMode ? 'confirmed' : 'pending',
+     confirmToken, rejectToken, note || null]
   );
 
   for (const leg of legs) {
@@ -87,6 +89,10 @@ router.post('/', async (req, res) => {
 
   const cp = db.get('SELECT * FROM players WHERE id = ?', [parseInt(counterparty_id)]);
   const wr = db.get('SELECT * FROM players WHERE id = ?', [parseInt(writer_id)]);
+
+  if (godMode) {
+    return res.render('trade_submitted', { title: 'Trade Submitted', trade: { id: tradeId }, counterparty: cp, godMode: true, confirmUrl: null, rejectUrl: null, mailtoUrl: null, currentPlayer });
+  }
 
   const tradeLegs = db.all(`
     SELECT tl.*, t.name as team_name, st.name as swap_team_name
@@ -113,15 +119,7 @@ router.post('/', async (req, res) => {
   const subject   = `WCTG trade from ${wr.name}`;
   const mailtoUrl = await notify(cp, subject, emailBody, confirmUrl, rejectUrl);
 
-  res.render('trade_submitted', {
-    title: 'Trade Submitted',
-    trade: { id: tradeId },
-    counterparty: cp,
-    mailtoUrl,
-    confirmUrl,
-    rejectUrl,
-    currentPlayer,
-  });
+  res.render('trade_submitted', { title: 'Trade Submitted', trade: { id: tradeId }, counterparty: cp, mailtoUrl, confirmUrl, rejectUrl, currentPlayer });
 });
 
 // ── Confirm / Reject ──────────────────────────────────────────────────────────
@@ -159,20 +157,23 @@ router.get('/:id/confirm', (req, res) => {
   if (trade.status !== 'pending') return res.render('token_used', { title: 'Already Responded', trade });
   if (checkExpiry(db, trade, res)) return;
 
-  const cookie = cookiePlayer(req);
-  if (isWriterSelf(cookie, trade)) {
-    const host = `${req.protocol}://${req.get('host')}`;
-    return res.render('writer_self', {
-      title: 'Wrong link',
-      writer:       db.get('SELECT * FROM players WHERE id=?', [trade.writer_id]),
-      counterparty: db.get('SELECT * FROM players WHERE id=?', [trade.counterparty_id]),
-      confirmUrl: `${host}/trade/${trade.id}/confirm?token=${trade.confirm_token}`,
-      rejectUrl:  `${host}/trade/${trade.id}/reject?token=${trade.reject_token}`,
-    });
-  }
-  if (cookie && cookie.id !== trade.writer_id && cookie.id !== trade.counterparty_id) {
-    logSecurityEvent(db, req, 'blocked-confirm', cookie.id, `Trade #${trade.id}`);
-    return res.render('error', { title: 'Not your trade', message: `You are logged in as ${cookie.name}, who is not a party to this trade.` });
+  const cookie  = cookiePlayer(req);
+  const godMode = req.cookies.wctg_god === '1';
+  if (!godMode) {
+    if (isWriterSelf(cookie, trade)) {
+      const host = `${req.protocol}://${req.get('host')}`;
+      return res.render('writer_self', {
+        title: 'Wrong link',
+        writer:       db.get('SELECT * FROM players WHERE id=?', [trade.writer_id]),
+        counterparty: db.get('SELECT * FROM players WHERE id=?', [trade.counterparty_id]),
+        confirmUrl: `${host}/trade/${trade.id}/confirm?token=${trade.confirm_token}`,
+        rejectUrl:  `${host}/trade/${trade.id}/reject?token=${trade.reject_token}`,
+      });
+    }
+    if (cookie && cookie.id !== trade.writer_id && cookie.id !== trade.counterparty_id) {
+      logSecurityEvent(db, req, 'blocked-confirm', cookie.id, `Trade #${trade.id}`);
+      return res.render('error', { title: 'Not your trade', message: `You are logged in as ${cookie.name}, who is not a party to this trade.` });
+    }
   }
 
   applyResponse(db, trade, 'confirmed');
@@ -199,20 +200,23 @@ router.get('/:id/reject', (req, res) => {
   if (trade.status !== 'pending') return res.render('token_used', { title: 'Already Responded', trade });
   if (checkExpiry(db, trade, res)) return;
 
-  const cookie = cookiePlayer(req);
-  if (isWriterSelf(cookie, trade)) {
-    const host = `${req.protocol}://${req.get('host')}`;
-    return res.render('writer_self', {
-      title: 'Wrong link',
-      writer:       db.get('SELECT * FROM players WHERE id=?', [trade.writer_id]),
-      counterparty: db.get('SELECT * FROM players WHERE id=?', [trade.counterparty_id]),
-      confirmUrl: `${host}/trade/${trade.id}/confirm?token=${trade.confirm_token}`,
-      rejectUrl:  `${host}/trade/${trade.id}/reject?token=${trade.reject_token}`,
-    });
-  }
-  if (cookie && cookie.id !== trade.writer_id && cookie.id !== trade.counterparty_id) {
-    logSecurityEvent(db, req, 'blocked-reject', cookie.id, `Trade #${trade.id}`);
-    return res.render('error', { title: 'Not your trade', message: `You are logged in as ${cookie.name}, who is not a party to this trade.` });
+  const cookie  = cookiePlayer(req);
+  const godMode = req.cookies.wctg_god === '1';
+  if (!godMode) {
+    if (isWriterSelf(cookie, trade)) {
+      const host = `${req.protocol}://${req.get('host')}`;
+      return res.render('writer_self', {
+        title: 'Wrong link',
+        writer:       db.get('SELECT * FROM players WHERE id=?', [trade.writer_id]),
+        counterparty: db.get('SELECT * FROM players WHERE id=?', [trade.counterparty_id]),
+        confirmUrl: `${host}/trade/${trade.id}/confirm?token=${trade.confirm_token}`,
+        rejectUrl:  `${host}/trade/${trade.id}/reject?token=${trade.reject_token}`,
+      });
+    }
+    if (cookie && cookie.id !== trade.writer_id && cookie.id !== trade.counterparty_id) {
+      logSecurityEvent(db, req, 'blocked-reject', cookie.id, `Trade #${trade.id}`);
+      return res.render('error', { title: 'Not your trade', message: `You are logged in as ${cookie.name}, who is not a party to this trade.` });
+    }
   }
 
   applyResponse(db, trade, 'rejected');
