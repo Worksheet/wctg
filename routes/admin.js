@@ -84,7 +84,7 @@ router.post('/godmode', requireAdmin, (req, res) => {
 router.post('/login', (req, res) => {
   const db = getDb(req);
   if (req.body.password === ADMIN_PASS) {
-    res.cookie('wctg_admin', ADMIN_PASS, { httpOnly: true, sameSite: 'Lax' });
+    res.cookie('wctg_admin', ADMIN_PASS, { httpOnly: true, sameSite: 'Lax', secure: process.env.NODE_ENV !== 'development' });
     return res.redirect('/admin');
   }
   logSecurityEvent(db, req, 'failed-admin-login', null, null);
