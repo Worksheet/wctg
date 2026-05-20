@@ -2,7 +2,6 @@ const express = require('express');
 const router  = express.Router();
 const { generateToken } = require('../lib/tokens');
 const { notify }        = require('../lib/notify');
-const { logSecurityEvent } = require('./admin');
 
 function getDb(req) { return req.app.locals.db; }
 
@@ -88,12 +87,7 @@ router.get('/:id', (req, res) => {
 function checkAmendAuth(req, trade, res) {
   const cookie = cookiePlayer(req);
   if (!cookie) {
-    res.render('error', { title: 'Login required', message: 'You must be logged in as a party to this trade to submit an amendment.' });
-    return false;
-  }
-  if (cookie.id !== trade.writer_id && cookie.id !== trade.counterparty_id) {
-    logSecurityEvent(getDb(req), req, 'blocked-amend', cookie.id, `Trade #${trade.id}`);
-    res.render('error', { title: 'Not your trade', message: `You are logged in as ${cookie.name}, who is not a party to trade #${trade.id}.` });
+    res.render('error', { title: 'Login required', message: 'You must be logged in to submit an amendment. Select your name on the New Trade page.' });
     return false;
   }
   return true;
