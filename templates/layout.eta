@@ -52,21 +52,7 @@
     }
   }, 2000);
 
-  // Method 2: Window dimension discrepancy
-  // When DevTools is docked (right/bottom), the inner viewport shrinks while
-  // the outer window stays the same. A gap >100px strongly suggests DevTools.
-  var sizeReported = false;
-  function checkSize() {
-    if (sizeReported) return;
-    if (window.outerWidth  - window.innerWidth  > 100 ||
-        window.outerHeight - window.innerHeight > 100) {
-      sizeReported = true;
-      report('devtools-size');
-    }
-  }
-  window.addEventListener('resize', checkSize);
-  setInterval(checkSize, 3000);
-  checkSize(); // also check immediately on load (catches already-open DevTools)
+
 })();
 </script>
 </body>

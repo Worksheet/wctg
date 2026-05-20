@@ -97,8 +97,20 @@
 
 <h2>Suspicious Activity Report</h2>
 <p style="font-size:0.85rem;color:#666">All suspicious activity is logged here. This section is visible to everyone — consider it a wall of shame.</p>
+<% if (it.sarEventTypes.length) { %>
+<form method="GET" action="/admin" style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+  <label for="sar-filter" style="font-size:0.85rem">Filter by event:</label>
+  <select id="sar-filter" name="event" onchange="this.form.submit()" style="font-size:0.85rem">
+    <option value="">— All —</option>
+    <% for (const t of it.sarEventTypes) { %>
+    <option value="<%= t %>" <%= it.sarEventFilter === t ? 'selected' : '' %>><%= t %></option>
+    <% } %>
+  </select>
+  <% if (it.sarEventFilter) { %><a href="/admin" style="font-size:0.85rem">Clear</a><% } %>
+</form>
+<% } %>
 <% if (!it.sar.length) { %>
-<p>Nothing to report. Everyone is behaving.</p>
+<p><%= it.sarEventFilter ? 'No events of this type.' : 'Nothing to report. Everyone is behaving.' %></p>
 <% } else { %>
 <table class="blotter-table">
   <thead>

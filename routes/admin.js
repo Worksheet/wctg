@@ -34,8 +34,8 @@ function logSecurityEvent(db, req, eventType, playerId, detail) {
   );
 }
 
-function getSar(db) {
-  return db.all(`
+function getSar(db, eventFilter) {
+  const rows = db.all(`
     SELECT le.created_at, 'identity-switch' AS event_type,
            pn.name AS actor, 'Was: ' || po.name AS detail,
            le.ip_address, le.user_agent
@@ -50,14 +50,18 @@ function getSar(db) {
     LEFT JOIN players p ON se.player_id = p.id
     ORDER BY 1 DESC
   `);
+  if (eventFilter) return rows.filter(r => r.event_type === eventFilter);
+  return rows;
 }
 
 function renderAdmin(res, db, req, extra = {}) {
-  const snapshots = db.all('SELECT id, label, created_at FROM snapshots ORDER BY id DESC');
-  const sar       = getSar(db);
-  const admin     = isAdmin(req);
-  const players   = admin ? db.all('SELECT * FROM players ORDER BY display_order') : [];
-  res.render('admin', { title: 'Admin', snapshots, sar, players, isAdmin: admin, loginError: false, error: null, ...extra });
+  const snapshots    = db.all('SELECT id, label, created_at FROM snapshots ORDER BY id DESC');
+  const eventFilter  = (req.query && req.query.event) || '';
+  const sar          = getSar(db, eventFilter);
+  const sarEventTypes = getSar(db).map(r => r.event_type).filter((v, i, a) => a.indexOf(v) === i).sort();
+  const admin        = isAdmin(req);
+  const players      = admin ? db.all('SELECT * FROM players ORDER BY display_order') : [];
+  res.render('admin', { title: 'Admin', snapshots, sar, sarEventTypes, sarEventFilter: eventFilter, players, isAdmin: admin, loginError: false, error: null, ...extra });
 }
 
 // ── God mode (admin only) ─────────────────────────────────────────────────────
