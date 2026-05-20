@@ -1,0 +1,14 @@
+# flyctl launch added from .gitignore
+**/.venv
+**/.idea
+**/node_modules
+**/*.db
+**/*.db-journal
+**/plans
+server.log
+server.err
+
+# flyctl launch added from .venv/.gitignore
+# created by virtualenv automatically
+.venv/**/*
+fly.toml
