@@ -8,80 +8,64 @@
 <style>
   .draw-wrap {
     display: flex;
-    gap: 16px;
+    gap: 1.25rem;
     align-items: flex-start;
   }
   #simCanvas {
-    background: #111;
-    border: 2px solid #444;
-    border-radius: 6px;
     flex-shrink: 0;
     max-width: 100%;
     cursor: default;
+    border: 2px solid #111;
+    display: block;
   }
   .draw-panel {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    width: 300px;
-    min-width: 260px;
-    background: #2a2a2a;
-    color: #eee;
-    padding: 14px;
-    border-radius: 6px;
-    font-family: system-ui, sans-serif;
-    font-size: 0.87rem;
+    gap: 0.75rem;
+    width: 280px;
+    min-width: 240px;
+    border: 1px solid #bbb;
+    background: #fff;
+    padding: 0.75rem;
+    font-size: 0.85rem;
   }
-  .draw-panel h3 { margin: 0 0 2px; font-size: 0.92rem; color: #bbb; border-bottom: 1px solid #444; padding-bottom: 6px; }
+  .draw-panel h3 {
+    margin: 0 0 0.5rem;
+    padding-bottom: 0.3rem;
+    border-bottom: 1px solid #bbb;
+    font-size: 1rem;
+  }
   .draw-stats {
-    background: #1a1a1a;
-    padding: 8px 10px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.88rem;
-    line-height: 1.7;
+    background: #e8e8e0;
+    border: 1px solid #bbb;
+    padding: 0.4rem 0.6rem;
+    line-height: 1.8;
+    font-size: 0.85rem;
   }
-  .draw-ctrl-label { font-size: 0.78rem; color: #999; margin-bottom: 3px; }
-  .draw-ctrl-row { display: flex; align-items: center; gap: 8px; }
+  .draw-ctrl-label { font-size: 0.78rem; color: #555; margin-bottom: 2px; }
+  .draw-ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
   .draw-ctrl-row input[type=range] { flex: 1; }
-  .draw-ctrl-row input[type=number] {
-    width: 52px; background: #333; border: 1px solid #555;
-    color: #eee; padding: 3px 4px; border-radius: 3px; font-size: 0.82rem;
-  }
-  #btnFire {
-    background: #9C27B0; color: #fff; border: none;
-    padding: 10px; border-radius: 4px; cursor: pointer;
-    font-weight: bold; font-size: 0.95rem; width: 100%;
-  }
-  #btnFire:hover:not(:disabled) { background: #7B1FA2; }
-  #btnFire:disabled { background: #555; cursor: not-allowed; }
+  .draw-ctrl-row input[type=number] { width: 4.5rem; }
+  #btnFire { width: 100%; padding: 0.4rem 0; font-size: 0.9rem; }
+  #btnFire:disabled { background: #999; cursor: not-allowed; }
   .draw-ledger-box {
-    background: #1a1a1a;
-    border-radius: 4px;
-    padding: 6px;
+    border: 1px solid #bbb;
     max-height: 240px;
     overflow-y: auto;
     flex: 1;
   }
-  .draw-ledger-box table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-  .draw-ledger-box th, .draw-ledger-box td { padding: 4px 6px; text-align: left; border-bottom: 1px solid #2e2e2e; }
-  .draw-ledger-box th { background: #2e2e2e; position: sticky; top: 0; color: #aaa; }
-  .draw-ledger-box tr:nth-child(even) td { background: #222; }
-  #accept-row button {
-    background: #2e7d32; color: #fff; border: none;
-    padding: 10px; border-radius: 4px; cursor: pointer;
-    font-weight: bold; font-size: 0.95rem; width: 100%;
-  }
-  #accept-row button:hover { background: #1b5e20; }
+  .draw-ledger-box table { font-size: 0.8rem; margin: 0; }
+  .draw-ledger-box th { position: sticky; top: 0; }
+  #accept-row button { width: 100%; padding: 0.4rem 0; font-size: 0.9rem; }
 </style>
 
 <div class="draw-wrap">
   <canvas id="simCanvas" width="800" height="800"></canvas>
 
   <div class="draw-panel">
-    <h3>Simulation Controls</h3>
+    <h3>Controls</h3>
 
-    <button id="btnFire">🔫 Fire Player</button>
+    <button id="btnFire">Fire Player</button>
 
     <div class="draw-stats" id="statsDisplay">
       Teams Left: —<br>Active Players: 0<br>Pairs Formed: 0
@@ -96,7 +80,7 @@
     </div>
 
     <div>
-      <div class="draw-ctrl-label">Player Fire Speed</div>
+      <div class="draw-ctrl-label">Fire Speed</div>
       <div class="draw-ctrl-row">
         <input type="range" id="fireSpeed" min="1" max="25" step="1" value="12">
         <input type="number" id="fireSpeedVal" value="12">
@@ -104,7 +88,7 @@
     </div>
 
     <div>
-      <div class="draw-ctrl-label">Gravity Base</div>
+      <div class="draw-ctrl-label">Gravity</div>
       <div class="draw-ctrl-row">
         <input type="range" id="gravityBase" min="0" max="500" step="10" value="100">
         <input type="number" id="gravityBaseVal" value="100">
@@ -121,11 +105,11 @@
     <div id="accept-row" style="display:none">
       <form method="POST" action="/draw/result">
         <input type="hidden" name="assignments" id="asgn-input">
-        <button type="submit">✓ Accept Result →</button>
+        <button type="submit">Accept Result →</button>
       </form>
     </div>
 
-    <p style="margin:0"><a href="/draw/results" style="color:#888;font-size:0.78rem">View saved results</a></p>
+    <p style="margin:0"><a href="/draw/results">View saved results</a></p>
   </div>
 </div>
 
@@ -470,8 +454,8 @@ function logMatch(player, team) {
   const row   = document.createElement('tr');
   row.innerHTML =
     `<td>${pairsFormed}</td>` +
-    `<td style="color:#e040fb">${player.name}</td>` +
-    `<td style="color:#64b5f6">${team.name}</td>`;
+    `<td>${player.name}</td>` +
+    `<td>${team.name}</td>`;
   tbody.appendChild(row);
   const box = document.querySelector('.draw-ledger-box');
   box.scrollTop = box.scrollHeight;
