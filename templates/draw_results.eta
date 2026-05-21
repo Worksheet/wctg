@@ -1,0 +1,32 @@
+<% layout('./layout') %>
+<h1>Draw Results</h1>
+
+<% if (!it.results.length) { %>
+<p>No draw has been run yet. <a href="/draw" class="btn-primary">Run the draw</a></p>
+<% } else { %>
+<%
+  const drawDate = it.results[0].created_at ? it.results[0].created_at.slice(0, 16) : '';
+%>
+<% if (drawDate) { %><p>Draw accepted: <strong><%= drawDate %></strong></p><% } %>
+<p style="font-size:0.85rem;color:#555">
+  Showing <%= it.results.length %> real-player assignments.
+  TBC placeholder results are not stored.
+</p>
+<table>
+  <thead>
+    <tr><th>#</th><th>Team</th><th>Player</th></tr>
+  </thead>
+  <tbody>
+  <% for (let i = 0; i < it.results.length; i++) { %>
+  <tr>
+    <td><%= i + 1 %></td>
+    <td><%= it.results[i].team_name %></td>
+    <td><%= it.results[i].player_name %></td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+<p style="margin-top:1rem"><a href="/draw" class="btn-primary">Re-run draw</a></p>
+<% } %>
+
+<p><a href="/draw">← Draw</a></p>

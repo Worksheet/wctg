@@ -87,6 +87,7 @@ app.use('/positions', require('./routes/positions'));
 app.use('/report',    require('./routes/report'));
 app.use('/players',   require('./routes/players'));
 app.use('/admin',     require('./routes/admin'));
+app.use('/draw',      require('./routes/draw'));
 
 app.get('/', (req, res) => res.redirect('/trade'));
 

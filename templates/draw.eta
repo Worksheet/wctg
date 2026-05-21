@@ -1,0 +1,527 @@
+<% layout('./layout') %>
+<h1>Sweepstake Draw</h1>
+
+<% if (it.drawDone) { %>
+<div class="error" style="margin-bottom:0.75rem">A draw result already exists. <a href="/draw/results">View current results</a></div>
+<% } %>
+
+<style>
+  .draw-wrap {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  #simCanvas {
+    background: #111;
+    border: 2px solid #444;
+    border-radius: 6px;
+    flex-shrink: 0;
+    max-width: 100%;
+    cursor: default;
+  }
+  .draw-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 300px;
+    min-width: 260px;
+    background: #2a2a2a;
+    color: #eee;
+    padding: 14px;
+    border-radius: 6px;
+    font-family: system-ui, sans-serif;
+    font-size: 0.87rem;
+  }
+  .draw-panel h3 { margin: 0 0 2px; font-size: 0.92rem; color: #bbb; border-bottom: 1px solid #444; padding-bottom: 6px; }
+  .draw-stats {
+    background: #1a1a1a;
+    padding: 8px 10px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.88rem;
+    line-height: 1.7;
+  }
+  .draw-ctrl-label { font-size: 0.78rem; color: #999; margin-bottom: 3px; }
+  .draw-ctrl-row { display: flex; align-items: center; gap: 8px; }
+  .draw-ctrl-row input[type=range] { flex: 1; }
+  .draw-ctrl-row input[type=number] {
+    width: 52px; background: #333; border: 1px solid #555;
+    color: #eee; padding: 3px 4px; border-radius: 3px; font-size: 0.82rem;
+  }
+  #btnFire {
+    background: #9C27B0; color: #fff; border: none;
+    padding: 10px; border-radius: 4px; cursor: pointer;
+    font-weight: bold; font-size: 0.95rem; width: 100%;
+  }
+  #btnFire:hover:not(:disabled) { background: #7B1FA2; }
+  #btnFire:disabled { background: #555; cursor: not-allowed; }
+  .draw-ledger-box {
+    background: #1a1a1a;
+    border-radius: 4px;
+    padding: 6px;
+    max-height: 240px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .draw-ledger-box table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .draw-ledger-box th, .draw-ledger-box td { padding: 4px 6px; text-align: left; border-bottom: 1px solid #2e2e2e; }
+  .draw-ledger-box th { background: #2e2e2e; position: sticky; top: 0; color: #aaa; }
+  .draw-ledger-box tr:nth-child(even) td { background: #222; }
+  #accept-row button {
+    background: #2e7d32; color: #fff; border: none;
+    padding: 10px; border-radius: 4px; cursor: pointer;
+    font-weight: bold; font-size: 0.95rem; width: 100%;
+  }
+  #accept-row button:hover { background: #1b5e20; }
+</style>
+
+<div class="draw-wrap">
+  <canvas id="simCanvas" width="800" height="800"></canvas>
+
+  <div class="draw-panel">
+    <h3>Simulation Controls</h3>
+
+    <button id="btnFire">🔫 Fire Player</button>
+
+    <div class="draw-stats" id="statsDisplay">
+      Teams Left: —<br>Active Players: 0<br>Pairs Formed: 0
+    </div>
+
+    <div>
+      <div class="draw-ctrl-label">Air Resistance</div>
+      <div class="draw-ctrl-row">
+        <input type="range" id="drag" min="0" max="0.05" step="0.001" value="0.002">
+        <input type="number" id="dragVal" value="0.002" step="0.001">
+      </div>
+    </div>
+
+    <div>
+      <div class="draw-ctrl-label">Player Fire Speed</div>
+      <div class="draw-ctrl-row">
+        <input type="range" id="fireSpeed" min="1" max="25" step="1" value="12">
+        <input type="number" id="fireSpeedVal" value="12">
+      </div>
+    </div>
+
+    <div>
+      <div class="draw-ctrl-label">Gravity Base</div>
+      <div class="draw-ctrl-row">
+        <input type="range" id="gravityBase" min="0" max="500" step="10" value="100">
+        <input type="number" id="gravityBaseVal" value="100">
+      </div>
+    </div>
+
+    <div class="draw-ledger-box">
+      <table>
+        <thead><tr><th>#</th><th>Player</th><th>Team</th></tr></thead>
+        <tbody id="matchTableBody"></tbody>
+      </table>
+    </div>
+
+    <div id="accept-row" style="display:none">
+      <form method="POST" action="/draw/result">
+        <input type="hidden" name="assignments" id="asgn-input">
+        <button type="submit">✓ Accept Result →</button>
+      </form>
+    </div>
+
+    <p style="margin:0"><a href="/draw/results" style="color:#888;font-size:0.78rem">View saved results</a></p>
+  </div>
+</div>
+
+<script>
+const REAL_PLAYERS = <%~ JSON.stringify(it.players) %>;
+const TEAMS        = <%~ JSON.stringify(it.teams) %>;
+
+// Full player queue: real players + TBC fill-ins to match team count
+const playerQueue = [
+  ...REAL_PLAYERS.map(p => ({ id: p.id, name: p.name, real: true })),
+  ...Array.from({ length: Math.max(0, TEAMS.length - REAL_PLAYERS.length) },
+    (_, i) => ({ id: null, name: `TBC ${i + 1}`, real: false }))
+];
+
+const canvas = document.getElementById('simCanvas');
+const ctx    = canvas.getContext('2d');
+
+const config = {
+  drag:        0.002,
+  fireSpeed:   12,
+  gravityBase: 100,
+  ballRadius:  12,
+  boxLeft:     120,
+  barrelCY:    canvas.height / 2,  // 400
+  barrelHalf:  30,                 // corridor: y 370–430
+};
+
+// Sync sliders ↔ number inputs
+['drag', 'fireSpeed', 'gravityBase'].forEach(key => {
+  const sl  = document.getElementById(key);
+  const num = document.getElementById(key + 'Val');
+  if (!sl || !num) return;
+  sl.addEventListener('input',  e => { num.value = e.target.value; config[key] = +e.target.value; });
+  num.addEventListener('input', e => { sl.value  = e.target.value; config[key] = +e.target.value; });
+});
+
+// ── State ──────────────────────────────────────────────────────────────────
+let balls         = [];
+let dyadPairs     = [];
+let pairsFormed   = 0;
+let pairIdCounter = 1;
+let queueIndex    = 0;
+
+// ── Vector ─────────────────────────────────────────────────────────────────
+class Vector {
+  constructor(x, y) { this.x = x; this.y = y; }
+  add(v)    { return new Vector(this.x + v.x, this.y + v.y); }
+  sub(v)    { return new Vector(this.x - v.x, this.y - v.y); }
+  mult(n)   { return new Vector(this.x * n,   this.y * n); }
+  mag()     { return Math.sqrt(this.x ** 2 + this.y ** 2); }
+  dot(v)    { return this.x * v.x + this.y * v.y; }
+  normalize() {
+    const m = this.mag();
+    return m ? new Vector(this.x / m, this.y / m) : new Vector(0, 0);
+  }
+}
+
+// ── Ball ───────────────────────────────────────────────────────────────────
+class Ball {
+  constructor(x, y, vx, vy, type, id, name, real) {
+    this.pos      = new Vector(x, y);
+    this.vel      = new Vector(vx, vy);
+    this.type     = type;    // 'team' | 'player' | 'matched'
+    this.origType = type;    // survives fusing
+    this.id       = id;
+    this.name     = name;
+    this.real     = real ?? true;
+    this.radius   = config.ballRadius;
+    this.pairId   = null;
+    this.inBox    = (type === 'team');
+  }
+
+  update() {
+    this.vel = this.vel.mult(1 - config.drag);
+    this.pos = this.pos.add(this.vel);
+  }
+
+  draw() {
+    const r = this.radius;
+    ctx.beginPath();
+    ctx.arc(this.pos.x, this.pos.y, r, 0, Math.PI * 2);
+    if      (this.type === 'team')   ctx.fillStyle = '#2196F3';
+    else if (this.type === 'player') ctx.fillStyle = '#9C27B0';
+    else                             ctx.fillStyle = '#F44336';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Label — first word, max 5 chars
+    const label = this.name.split(' ')[0].slice(0, 5);
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold 8px system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, this.pos.x, this.pos.y);
+  }
+}
+
+// ── Init teams ─────────────────────────────────────────────────────────────
+function initTeams() {
+  for (const t of TEAMS) {
+    let x, y, ok, tries = 0;
+    do {
+      x = config.boxLeft + config.ballRadius + Math.random() * (canvas.width - config.boxLeft - config.ballRadius * 2);
+      y = config.ballRadius + Math.random() * (canvas.height - config.ballRadius * 2);
+      ok = true;
+      for (const b of balls) {
+        if (Math.hypot(x - b.pos.x, y - b.pos.y) < config.ballRadius * 2.5) { ok = false; break; }
+      }
+    } while (!ok && ++tries < 80);
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Math.random() * 2 + 1;
+    balls.push(new Ball(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed, 'team', t.id, t.name, true));
+  }
+}
+
+// ── Fire ───────────────────────────────────────────────────────────────────
+const btnFire = document.getElementById('btnFire');
+btnFire.addEventListener('click', fireNext);
+
+function fireNext() {
+  if (queueIndex >= playerQueue.length) return;
+  const p  = playerQueue[queueIndex++];
+  const vy = (Math.random() - 0.5) * 3;
+  balls.push(new Ball(
+    10, config.barrelCY + (Math.random() - 0.5) * 8,
+    config.fireSpeed, vy,
+    'player', p.id, p.name, p.real
+  ));
+  if (queueIndex >= playerQueue.length) {
+    btnFire.disabled    = true;
+    btnFire.textContent = 'All fired';
+  }
+  updateStats();
+}
+
+// ── Gravity ────────────────────────────────────────────────────────────────
+function applyGravity() {
+  const lonePlayers = balls.filter(b => b.type === 'player' && b.inBox);
+  const loneTeams   = balls.filter(b => b.type === 'team');
+  if (!lonePlayers.length || !loneTeams.length) return;
+
+  const N = Math.max(1, lonePlayers.length);
+  const f = config.gravityBase / N;
+
+  for (const pl of lonePlayers) {
+    for (const tm of loneTeams) {
+      const dx    = tm.pos.x - pl.pos.x;
+      const dy    = tm.pos.y - pl.pos.y;
+      const dist2 = dx * dx + dy * dy + 100;
+      const dist  = Math.sqrt(dist2);
+      const mag   = f / dist2;
+      pl.vel.x += mag * dx / dist;  pl.vel.y += mag * dy / dist;
+      tm.vel.x -= mag * dx / dist;  tm.vel.y -= mag * dy / dist;
+    }
+  }
+}
+
+// ── Collisions ─────────────────────────────────────────────────────────────
+function resolveCollisions() {
+  for (let i = 0; i < balls.length; i++) {
+    for (let j = i + 1; j < balls.length; j++) {
+      const a = balls[i], b = balls[j];
+      if (a.pairId !== null && a.pairId === b.pairId) continue;
+
+      const dx   = b.pos.x - a.pos.x, dy = b.pos.y - a.pos.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+      const minD = a.radius + b.radius;
+      if (dist >= minD) continue;
+
+      // Velcro: lone player + lone team → fuse
+      if (a.pairId === null && b.pairId === null &&
+          ((a.type === 'team' && b.type === 'player') ||
+           (a.type === 'player' && b.type === 'team'))) {
+        fuse(a, b);
+        continue;
+      }
+
+      // Elastic push
+      const nx  = dx / dist, ny = dy / dist;
+      const sep = (minD - dist) / 2;
+      a.pos.x -= nx * sep;  a.pos.y -= ny * sep;
+      b.pos.x += nx * sep;  b.pos.y += ny * sep;
+
+      const dvx = a.vel.x - b.vel.x, dvy = a.vel.y - b.vel.y;
+      const dot = dvx * nx + dvy * ny;
+      if (dot <= 0) continue;
+      a.vel.x -= dot * nx;  a.vel.y -= dot * ny;
+      b.vel.x += dot * nx;  b.vel.y += dot * ny;
+    }
+  }
+}
+
+function fuse(a, b) {
+  const id = pairIdCounter++;
+  a.pairId = b.pairId = id;
+  a.type   = b.type   = 'matched';
+  dyadPairs.push({ b1: a, b2: b });
+  pairsFormed++;
+
+  const player = a.origType === 'player' ? a : b;
+  const team   = a.origType === 'team'   ? a : b;
+  updateStats();
+  logMatch(player, team);
+
+  if (pairsFormed >= TEAMS.length) buildAccept();
+}
+
+// ── Rigid dyads ────────────────────────────────────────────────────────────
+function enforceRigidDyads() {
+  for (const { b1, b2 } of dyadPairs) {
+    const cx  = (b1.pos.x + b2.pos.x) / 2;
+    const cy  = (b1.pos.y + b2.pos.y) / 2;
+    let   dx  = b1.pos.x - b2.pos.x,  dy  = b1.pos.y - b2.pos.y;
+    const mag = Math.sqrt(dx * dx + dy * dy) || 1;
+    dx /= mag;  dy /= mag;
+    b1.pos.x = cx + dx * b1.radius;  b1.pos.y = cy + dy * b1.radius;
+    b2.pos.x = cx - dx * b2.radius;  b2.pos.y = cy - dy * b2.radius;
+
+    const vcx = (b1.vel.x + b2.vel.x) / 2;
+    const vcy = (b1.vel.y + b2.vel.y) / 2;
+    const r1x = b1.pos.x - cx, r1y = b1.pos.y - cy;
+    const r2x = b2.pos.x - cx, r2y = b2.pos.y - cy;
+    const v1rx = b1.vel.x - vcx, v1ry = b1.vel.y - vcy;
+    const v2rx = b2.vel.x - vcx, v2ry = b2.vel.y - vcy;
+    const I    = (r1x*r1x + r1y*r1y + r2x*r2x + r2y*r2y) || 1;
+    const omega = ((r1x*v1ry - r1y*v1rx) + (r2x*v2ry - r2y*v2rx)) / I;
+    b1.vel.x = vcx - omega * r1y;  b1.vel.y = vcy + omega * r1x;
+    b2.vel.x = vcx - omega * r2y;  b2.vel.y = vcy + omega * r2x;
+  }
+}
+
+// ── Wall constraints ───────────────────────────────────────────────────────
+function handleWalls() {
+  for (const b of balls) {
+    const r = b.radius;
+
+    if (!b.inBox && b.pos.x > config.boxLeft + r) b.inBox = true;
+
+    if (!b.inBox) {
+      // Barrel corridor
+      const top = config.barrelCY - config.barrelHalf + r;
+      const bot = config.barrelCY + config.barrelHalf - r;
+      if (b.pos.y < top) { b.pos.y = top; b.vel.y *= -1; }
+      if (b.pos.y > bot) { b.pos.y = bot; b.vel.y *= -1; }
+      if (b.pos.x < r)   { b.pos.x = r;   b.vel.x *= -1; }
+    } else {
+      // Main box — left wall is solid once inside
+      if (b.pos.x < config.boxLeft + r) { b.pos.x = config.boxLeft + r; b.vel.x *= -1; }
+      if (b.pos.x > canvas.width  - r)  { b.pos.x = canvas.width  - r; b.vel.x *= -1; }
+      if (b.pos.y < r)                  { b.pos.y = r;                  b.vel.y *= -1; }
+      if (b.pos.y > canvas.height - r)  { b.pos.y = canvas.height - r; b.vel.y *= -1; }
+    }
+  }
+}
+
+// ── Mouse drag — team balls only ───────────────────────────────────────────
+let dragBall = null, prevMX = 0, prevMY = 0;
+
+canvas.addEventListener('mousedown', e => {
+  const { mx, my } = toCanvas(e);
+  for (const b of balls) {
+    if (b.type === 'team' && Math.hypot(mx - b.pos.x, my - b.pos.y) <= b.radius) {
+      dragBall = b;
+      prevMX = mx;  prevMY = my;
+      break;
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', e => {
+  const { mx, my } = toCanvas(e);
+  canvas.style.cursor = balls.some(b => b.type === 'team' && Math.hypot(mx - b.pos.x, my - b.pos.y) <= b.radius)
+    ? 'grab' : 'default';
+  if (!dragBall) return;
+  const r = dragBall.radius;
+  dragBall.pos.x = Math.max(config.boxLeft + r, Math.min(canvas.width  - r, mx));
+  dragBall.pos.y = Math.max(r,                  Math.min(canvas.height - r, my));
+  dragBall.vel.x = mx - prevMX;
+  dragBall.vel.y = my - prevMY;
+  prevMX = mx;  prevMY = my;
+});
+
+canvas.addEventListener('mouseup',    () => { dragBall = null; });
+canvas.addEventListener('mouseleave', () => { dragBall = null; });
+
+function toCanvas(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    mx: (e.clientX - rect.left) * (canvas.width  / rect.width),
+    my: (e.clientY - rect.top)  * (canvas.height / rect.height),
+  };
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function drawEnvironment() {
+  // Barrel surround
+  ctx.fillStyle = '#161616';
+  ctx.fillRect(0, 0, config.boxLeft, canvas.height);
+
+  // Barrel corridor
+  ctx.fillStyle = '#1e1e2e';
+  ctx.fillRect(0, config.barrelCY - config.barrelHalf, config.boxLeft, config.barrelHalf * 2);
+
+  // Slit opening highlight (purple)
+  ctx.strokeStyle = '#9C27B0';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(config.boxLeft, config.barrelCY - config.barrelHalf);
+  ctx.lineTo(config.boxLeft, config.barrelCY + config.barrelHalf);
+  ctx.stroke();
+
+  // Left wall — solid above and below the slit
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(config.boxLeft, 0);
+  ctx.lineTo(config.boxLeft, config.barrelCY - config.barrelHalf);
+  ctx.moveTo(config.boxLeft, config.barrelCY + config.barrelHalf);
+  ctx.lineTo(config.boxLeft, canvas.height);
+  ctx.stroke();
+
+  // Other three walls
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(config.boxLeft, 0, canvas.width - config.boxLeft, canvas.height);
+}
+
+// ── Stats & ledger ─────────────────────────────────────────────────────────
+function updateStats() {
+  const active = balls.filter(b => b.type === 'player').length;
+  document.getElementById('statsDisplay').innerHTML =
+    `Teams Left: ${TEAMS.length - pairsFormed}<br>` +
+    `Active Players: ${active}<br>` +
+    `Pairs Formed: ${pairsFormed}`;
+}
+
+function logMatch(player, team) {
+  const tbody = document.getElementById('matchTableBody');
+  const row   = document.createElement('tr');
+  row.innerHTML =
+    `<td>${pairsFormed}</td>` +
+    `<td style="color:#e040fb">${player.name}</td>` +
+    `<td style="color:#64b5f6">${team.name}</td>`;
+  tbody.appendChild(row);
+  const box = document.querySelector('.draw-ledger-box');
+  box.scrollTop = box.scrollHeight;
+}
+
+function buildAccept() {
+  const assignments = dyadPairs
+    .map(({ b1, b2 }) => {
+      const player = b1.origType === 'player' ? b1 : b2;
+      const team   = b1.origType === 'team'   ? b1 : b2;
+      return player.real ? { player_id: player.id, team_id: team.id } : null;
+    })
+    .filter(Boolean);
+  document.getElementById('asgn-input').value  = JSON.stringify(assignments);
+  document.getElementById('accept-row').style.display = 'block';
+}
+
+// ── Main loop ──────────────────────────────────────────────────────────────
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  drawEnvironment();
+
+  // 1. Move (drag applied inside)
+  for (const b of balls) b.update();
+
+  // 2. Gravity
+  applyGravity();
+
+  // 3. Wall constraints
+  handleWalls();
+
+  // 4. Collisions + velcro detection
+  resolveCollisions();
+
+  // 5. Rigid dyad projection
+  enforceRigidDyads();
+
+  // 6. Final wall sweep
+  handleWalls();
+
+  // Draw
+  for (const b of balls) b.draw();
+
+  requestAnimationFrame(loop);
+}
+
+initTeams();
+updateStats();
+loop();
+</script>

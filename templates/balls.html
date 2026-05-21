@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!--     Layout & Environment
+Main Box: The primary arena enclosed by solid boundary walls.
+
+Firing Barrel: A side corridor used to shoot balls into the main box.
+
+One-Way Slit: A boundary that allows balls to enter from the barrel but acts as a completely solid wall once they are inside the box.
+
+Ball Types & States
+Teams: Balls that start inside the box, colored blue.
+
+Players: Balls launched from the barrel, colored purple, capped at a maximum capacity that matches the initial number of teams.
+
+Dyads: Matched pairs of one team ball and one player ball, colored red.
+
+Physics & Mechanics
+Velcro Fusing: When a lone team ball and a lone player ball collide, they permanently lock together at their edges. They become instantly unsticky to other balls and continue bouncing through the arena as a rigid, rotating barbell unit.
+
+Targeted Gravity: A selective attraction force pulling lone players and lone teams toward each other. The force intensifies dynamically as the number of unpaired active players decreases.
+
+Air Resistance: A global dampening effect that slows balls down over time to prevent infinite acceleration.
+
+Cursor Interactivity: The user can click and drag lone team balls around the box with their cursor. Players and completed dyads cannot be manipulated.
+
+UI & Tracking
+Launch Control: A button to fire players into the box, which deactivates permanently once the total team limit is met.
+
+Tuning Sliders: Inputs to adjust air resistance, gravity strength, and player firing speed on the fly.
+
+Live Telemetry: A panel displaying current counts for remaining teams, active players, and completed pairs.
+
+Match Ledger: A scrolling table that records the specific identities of each player and team the moment they fuse into a pair. -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Draw Simulator - Dyads & Barrel</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #1e1e1e;
+            color: #fff;
+            display: flex;
+            gap: 20px;
+        }
+        canvas {
+            background-color: #111;
+            border: 2px solid #444;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 350px;
+            background: #2a2a2a;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            max-height: 800px;
+            overflow-y: auto;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .control-group label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9em;
+            color: #ccc;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+        }
+        input[type="number"] {
+            width: 60px;
+            background: #333;
+            border: 1px solid #555;
+            color: #fff;
+            padding: 4px;
+            border-radius: 4px;
+        }
+        button {
+            background: #9C27B0; /* Purple to match player */
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+            font-size: 1.1em;
+        }
+        button:hover { background: #7B1FA2; }
+        
+        .stats {
+            background: #222;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            line-height: 1.5;
+        }
+
+        .table-container {
+            margin-top: 10px;
+            background: #222;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #444;
+        }
+        th {
+            background-color: #333;
+            position: sticky;
+            top: 0;
+        }
+        tr:nth-child(even) {
+            background-color: #2a2a2a;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="simCanvas" width="800" height="800"></canvas>
+
+    <div class="controls">
+        <h2>Simulation Controls</h2>
+        
+        <button id="btnFire">🔫 Fire Player</button>
+
+        <div class="stats" id="statsDisplay">
+            Teams Left: 48<br>
+            Active Players: 0<br>
+            Pairs Formed: 0
+        </div>
+
+        <div class="control-group">
+            <label><span>Air Resistance (Drag)</span></label>
+            <div class="slider-row">
+                <input type="range" id="drag" min="0" max="0.05" step="0.001" value="0.002">
+                <input type="number" id="dragVal" value="0.002">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label><span>Player Fire Speed</span></label>
+            <div class="slider-row">
+                <input type="range" id="fireSpeed" min="1" max="25" step="1" value="12">
+                <input type="number" id="fireSpeedVal" value="12">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label><span>Polygon Spin Rate</span></label>
+            <div class="slider-row">
+                <input type="range" id="polySpin" min="-0.2" max="0.2" step="0.01" value="0.05">
+                <input type="number" id="polySpinVal" value="0.05">
+            </div>
+        </div>
+
+        <div class="control-group">
+            <label><span>Polygon Radius</span></label>
+            <div class="slider-row">
+                <input type="range" id="polyRadius" min="20" max="200" step="5" value="100">
+                <input type="number" id="polyRadiusVal" value="100">
+            </div>
+        </div>
+        
+        <div class="table-container">
+            <table id="matchTable">
+                <thead>
+                    <tr>
+                        <th>Player (Purple)</th>
+                        <th>Team (Blue)</th>
+                    </tr>
+                </thead>
+                <tbody id="matchTableBody">
+                    <!-- Matches appear here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const config = {
+        drag: 0.002,
+        fireSpeed: 12,
+        polySpin: 0.05,
+        polyRadius: 100,
+        ballRadius: 12,
+        boxLeft: 120, // X coordinate where the main box begins
+        barrelY: canvas.height / 2,
+        barrelWidth: 60 // 30px up and down from center
+    };
+
+    // Bind sliders
+    Object.keys(config).forEach(key => {
+        const el = document.getElementById(key);
+        const valEl = document.getElementById(key + 'Val');
+        if (el && valEl) {
+            el.addEventListener('input', (e) => {
+                valEl.value = e.target.value;
+                config[key] = parseFloat(e.target.value);
+            });
+            valEl.addEventListener('input', (e) => {
+                el.value = e.target.value;
+                config[key] = parseFloat(e.target.value);
+            });
+        }
+    });
+
+    let balls = [];
+    let dyadPairs = [];
+    let polyAngle = 0;
+    
+    // Stats tracking
+    let activePlayersCount = 0;
+    let pairsFormed = 0;
+    let playerCounter = 1;
+    let pairIdCounter = 1;
+
+    class Vector {
+        constructor(x, y) { this.x = x; this.y = y; }
+        add(v) { return new Vector(this.x + v.x, this.y + v.y); }
+        sub(v) { return new Vector(this.x - v.x, this.y - v.y); }
+        mult(n) { return new Vector(this.x * n, this.y * n); }
+        mag() { return Math.sqrt(this.x**2 + this.y**2); }
+        normalize() { const m = this.mag(); return m === 0 ? new Vector(0,0) : new Vector(this.x/m, this.y/m); }
+        dot(v) { return this.x * v.x + this.y * v.y; }
+    }
+
+    class Ball {
+        constructor(x, y, vx, vy, type, labelNum) {
+            this.pos = new Vector(x, y);
+            this.vel = new Vector(vx, vy);
+            this.type = type; // 'team', 'player', 'matched'
+            this.labelNum = labelNum;
+            this.radius = config.ballRadius;
+            this.pairId = null; // Used to identify linked balls
+            this.inBox = (type === 'team'); // Teams spawn directly in the box
+        }
+        
+        update() {
+            // Drag
+            this.vel = this.vel.mult(1 - config.drag);
+            this.pos = this.pos.add(this.vel);
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.pos.x, this.pos.y, this.radius, 0, Math.PI * 2);
+            
+            if (this.type === 'team') ctx.fillStyle = '#2196F3'; // Blue
+            else if (this.type === 'player') ctx.fillStyle = '#9C27B0'; // Purple
+            else if (this.type === 'matched') ctx.fillStyle = '#F44336'; // Red
+            
+            ctx.fill();
+            ctx.closePath();
+            
+            if (this.labelNum) {
+                ctx.fillStyle = '#FFF';
+                ctx.font = '10px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.labelNum, this.pos.x, this.pos.y);
+            }
+        }
+    }
+
+    function initTeams() {
+        for (let i = 1; i <= 48; i++) {
+            let x = Math.random() * (canvas.width - config.boxLeft - 100) + config.boxLeft + 50;
+            let y = Math.random() * (canvas.height - 100) + 50;
+            let angle = Math.random() * Math.PI * 2;
+            let speed = Math.random() * 2 + 1;
+            balls.push(new Ball(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, 'team', i));
+        }
+    }
+
+    document.getElementById('btnFire').addEventListener('click', () => {
+        let pId = playerCounter++;
+        // Spawn inside the barrel on the far left
+        let newPlayer = new Ball(
+            20, 
+            config.barrelY + (Math.random() - 0.5) * 10, 
+            config.fireSpeed, 
+            (Math.random() - 0.5) * 3, 
+            'player',
+            pId
+        );
+        balls.push(newPlayer);
+        activePlayersCount++;
+        updateStats();
+    });
+
+    function logMatch(playerNum, teamNum) {
+        const row = document.createElement('tr');
+        const tdPlayer = document.createElement('td');
+        const tdTeam = document.createElement('td');
+        tdPlayer.textContent = "Player " + playerNum;
+        tdTeam.textContent = "Team " + teamNum;
+        tdPlayer.style.color = '#e040fb'; 
+        tdTeam.style.color = '#64b5f6'; 
+        row.appendChild(tdPlayer);
+        row.appendChild(tdTeam);
+        document.getElementById('matchTableBody').appendChild(row);
+        row.parentElement.parentElement.parentElement.scrollTop = row.parentElement.parentElement.parentElement.scrollHeight;
+    }
+
+    function resolveCollisions() {
+        for (let i = 0; i < balls.length; i++) {
+            for (let j = i + 1; j < balls.length; j++) {
+                let b1 = balls[i];
+                let b2 = balls[j];
+
+                // Skip collision if they are the two halves of the same rigid dyad pair
+                if (b1.pairId !== null && b1.pairId === b2.pairId) continue;
+
+                let delta = b2.pos.sub(b1.pos);
+                let dist = delta.mag();
+                let minDist = b1.radius + b2.radius;
+
+                if (dist < minDist) {
+                    // Check for "velcro" stick
+                    if (b1.pairId === null && b2.pairId === null && 
+                        ((b1.type === 'team' && b2.type === 'player') || (b1.type === 'player' && b2.type === 'team'))) {
+                        
+                        let pairId = pairIdCounter++;
+                        b1.pairId = pairId;
+                        b2.pairId = pairId;
+                        b1.type = 'matched';
+                        b2.type = 'matched';
+                        
+                        dyadPairs.push({ b1: b1, b2: b2 });
+                        
+                        let pNum = b1.type === 'player' ? b1.labelNum : b2.labelNum;
+                        let tNum = b1.type === 'team' ? b1.labelNum : b2.labelNum;
+                        logMatch(pNum, tNum);
+                        
+                        activePlayersCount--;
+                        pairsFormed++;
+                        updateStats();
+                        continue; // Do not apply bounce impulse; they are now glued!
+                    }
+
+                    // Standard Elastic Collision (Push apart to resolve overlap)
+                    if (dist === 0) { delta = new Vector(1,0); dist = 1; }
+                    let overlap = minDist - dist;
+                    let normal = delta.normalize();
+                    
+                    let correction = normal.mult(overlap / 2);
+                    b1.pos = b1.pos.sub(correction);
+                    b2.pos = b2.pos.add(correction);
+
+                    // Exchange velocity along the normal
+                    let vDiff = b1.vel.sub(b2.vel);
+                    let vDot = vDiff.dot(normal);
+                    
+                    if (vDot < 0) {
+                        let bounce = normal.mult(vDot); // Mass is equal (1) for all individual balls
+                        b1.vel = b1.vel.sub(bounce);
+                        b2.vel = b2.vel.add(bounce);
+                    }
+                }
+            }
+        }
+    }
+
+    // Applies rigid body constraints to dyads so they behave like a connected barbell
+    function enforceRigidDyads() {
+        dyadPairs.forEach(pair => {
+            let b1 = pair.b1;
+            let b2 = pair.b2;
+            
+            // 1. Position Projection (Keep exactly 2*radius apart)
+            let center = b1.pos.add(b2.pos).mult(0.5);
+            let dir = b1.pos.sub(b2.pos);
+            if (dir.mag() === 0) dir = new Vector(1, 0);
+            dir = dir.normalize();
+            b1.pos = center.add(dir.mult(b1.radius));
+            b2.pos = center.sub(dir.mult(b2.radius));
+            
+            // 2. Velocity Projection (Conserve linear and angular momentum)
+            let vCom = b1.vel.add(b2.vel).mult(0.5);
+            let r1 = b1.pos.sub(center);
+            let r2 = b2.pos.sub(center);
+            
+            let v1Rel = b1.vel.sub(vCom);
+            let v2Rel = b2.vel.sub(vCom);
+            
+            // 2D Cross product: r x v
+            let cross1 = r1.x * v1Rel.y - r1.y * v1Rel.x;
+            let cross2 = r2.x * v2Rel.y - r2.y * v2Rel.x;
+            
+            // Moment of Inertia for two point masses
+            let I = r1.mag()**2 + r2.mag()**2;
+            let omega = (cross1 + cross2) / I;
+            
+            // Reconstruct rigid velocities
+            b1.vel = vCom.add(new Vector(-omega * r1.y, omega * r1.x));
+            b2.vel = vCom.add(new Vector(-omega * r2.y, omega * r2.x));
+        });
+    }
+
+    function handleWalls() {
+        balls.forEach(b => {
+            let r = b.radius;
+            
+            // Check if player has entered the main box
+            if (!b.inBox && b.pos.x > config.boxLeft + r) {
+                b.inBox = true;
+            }
+
+            if (!b.inBox) {
+                // Inside the Barrel Constraints
+                let topLimit = config.barrelY - config.barrelWidth / 2 + r;
+                let botLimit = config.barrelY + config.barrelWidth / 2 - r;
+                
+                if (b.pos.y < topLimit) { b.pos.y = topLimit; b.vel.y *= -1; }
+                if (b.pos.y > botLimit) { b.pos.y = botLimit; b.vel.y *= -1; }
+                if (b.pos.x < r) { b.pos.x = r; b.vel.x *= -1; }
+            } else {
+                // Inside the Main Box Constraints
+                // Left wall acts as completely solid for ANY ball in the box
+                if (b.pos.x < config.boxLeft + r) { b.pos.x = config.boxLeft + r; b.vel.x *= -1; }
+                if (b.pos.x > canvas.width - r) { b.pos.x = canvas.width - r; b.vel.x *= -1; }
+                if (b.pos.y < r) { b.pos.y = r; b.vel.y *= -1; }
+                if (b.pos.y > canvas.height - r) { b.pos.y = canvas.height - r; b.vel.y *= -1; }
+            }
+        });
+    }
+
+    function ensureOutsidePolygon(ball, cx, cy) {
+        let dist = ball.pos.sub(new Vector(cx, cy)).mag();
+        // Inscribed radius of a hexagon
+        let inRadius = config.polyRadius * 0.866; 
+        
+        if (dist < inRadius + ball.radius) {
+            // Ball is fully inside or clipping deeply; pop it out directly
+            let dir = ball.pos.sub(new Vector(cx, cy));
+            if(dir.mag() === 0) dir = new Vector(1, 0);
+            dir = dir.normalize();
+            ball.pos = new Vector(cx, cy).add(dir.mult(inRadius + ball.radius));
+        }
+    }
+
+    function handlePolygonCollision(ball, polyVertices, cx, cy, omega) {
+        ensureOutsidePolygon(ball, cx, cy);
+
+        for (let i = 0; i < polyVertices.length; i++) {
+            let p1 = polyVertices[i];
+            let p2 = polyVertices[(i + 1) % polyVertices.length];
+            
+            let l2 = p1.sub(p2).mag()**2;
+            let t = Math.max(0, Math.min(1, ball.pos.sub(p1).dot(p2.sub(p1)) / l2));
+            let projection = p1.add(p2.sub(p1).mult(t));
+            
+            let distVec = ball.pos.sub(projection);
+            let dist = distVec.mag();
+
+            if (dist < ball.radius) {
+                // Push ball exactly to the edge boundary
+                let overlap = ball.radius - dist;
+                let normal = distVec.normalize();
+                ball.pos = ball.pos.add(normal.mult(overlap));
+
+                // Moving edge injects velocity
+                let rVec = projection.sub(new Vector(cx, cy));
+                let edgeVel = new Vector(-omega * rVec.y, omega * rVec.x);
+
+                let relVel = ball.vel.sub(edgeVel);
+                if (relVel.dot(normal) < 0) {
+                    let bounce = normal.mult(-2 * relVel.dot(normal));
+                    relVel = relVel.add(bounce);
+                    ball.vel = relVel.add(edgeVel);
+                }
+            }
+        }
+    }
+
+    function updateStats() {
+        const teamsLeft = 48 - pairsFormed;
+        document.getElementById('statsDisplay').innerHTML = 
+            `Teams Left: ${teamsLeft}<br>Active Players: ${activePlayersCount}<br>Pairs Formed: ${pairsFormed}`;
+    }
+
+    function drawEnvironment() {
+        // Draw Main Box Boundary Outline
+        ctx.fillStyle = '#444'; 
+        ctx.fillRect(0, 0, config.boxLeft, canvas.height); // Black out the left margin
+        
+        // Draw the barrel path
+        ctx.fillStyle = '#222';
+        ctx.fillRect(0, config.barrelY - config.barrelWidth/2, config.boxLeft, config.barrelWidth);
+        
+        // Draw the solid boundary line of the box
+        ctx.beginPath();
+        ctx.moveTo(config.boxLeft, 0);
+        ctx.lineTo(config.boxLeft, canvas.height);
+        ctx.strokeStyle = '#666';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+    }
+
+    function drawPolygon(cx, cy, radius, sides, angle) {
+        ctx.beginPath();
+        let vertices = [];
+        for (let i = 0; i < sides; i++) {
+            let theta = angle + (i * 2 * Math.PI / sides);
+            let x = cx + radius * Math.cos(theta);
+            let y = cy + radius * Math.sin(theta);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+            vertices.push(new Vector(x, y));
+        }
+        ctx.closePath();
+        ctx.fillStyle = '#FF9800';
+        ctx.fill();
+        ctx.strokeStyle = '#F57C00';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        return vertices;
+    }
+
+    // Main Loop
+    function loop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        drawEnvironment();
+
+        // Polygon Setup
+        polyAngle += config.polySpin;
+        let polyCx = config.boxLeft + (canvas.width - config.boxLeft) / 2;
+        let polyCy = canvas.height / 2;
+        let polyVertices = drawPolygon(polyCx, polyCy, config.polyRadius, 6, polyAngle);
+
+        // 1. Move balls based on velocity
+        balls.forEach(b => b.update());
+
+        // 2. Resolve Polygon & Wall boundaries
+        balls.forEach(b => handlePolygonCollision(b, polyVertices, polyCx, polyCy, config.polySpin));
+        
+        // 3. Resolve Ball-to-Ball overlap and collisions
+        resolveCollisions();
+        
+        // 4. Rigidify the pairs (Position and Velocity constraints)
+        enforceRigidDyads();
+        
+        // 5. Final wall constraint sweep (keeps dyads in bounds after rigid projection)
+        handleWalls();
+
+        // Draw balls
+        balls.forEach(b => b.draw());
+
+        requestAnimationFrame(loop);
+    }
+
+    initTeams();
+    updateStats();
+    loop();
+</script>
+</body>
+</html>
