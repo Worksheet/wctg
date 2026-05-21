@@ -46,8 +46,8 @@
   .draw-ctrl-row { display: flex; align-items: center; gap: 0.5rem; }
   .draw-ctrl-row input[type=range] { flex: 1; }
   .draw-ctrl-row input[type=number] { width: 4.5rem; }
-  #btnFire { width: 100%; padding: 0.4rem 0; font-size: 0.9rem; }
-  #btnFire:disabled { background: #999; cursor: not-allowed; }
+  #btnFire, #btnAuto { width: 100%; padding: 0.4rem 0; font-size: 0.9rem; }
+  #btnFire:disabled, #btnAuto:disabled { background: #999; cursor: not-allowed; }
   .draw-ledger-box {
     border: 1px solid #bbb;
     max-height: 240px;
@@ -57,6 +57,7 @@
   .draw-ledger-box table { font-size: 0.8rem; margin: 0; }
   .draw-ledger-box th { position: sticky; top: 0; }
   #accept-row button { width: 100%; padding: 0.4rem 0; font-size: 0.9rem; }
+  .draw-check-row { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
 </style>
 
 <div class="draw-wrap">
@@ -66,6 +67,10 @@
     <h3>Controls</h3>
 
     <button id="btnFire">Fire Player</button>
+    <button id="btnAuto">Auto-fire All</button>
+    <div id="nextUp" style="background:#e8e8e0;border:1px solid #bbb;padding:0.4rem 0.6rem;font-size:0.82rem;min-height:2.4rem">
+      Next: —
+    </div>
 
     <div class="draw-stats" id="statsDisplay">
       Teams Left: —<br>Active Players: 0<br>Pairs Formed: 0
@@ -74,8 +79,8 @@
     <div>
       <div class="draw-ctrl-label">Air Resistance</div>
       <div class="draw-ctrl-row">
-        <input type="range" id="drag" min="0" max="0.05" step="0.001" value="0.002">
-        <input type="number" id="dragVal" value="0.002" step="0.001">
+        <input type="range" id="drag" min="0" max="0.05" step="0.001" value="0.001">
+        <input type="number" id="dragVal" value="0.001" step="0.001">
       </div>
     </div>
 
@@ -94,6 +99,11 @@
         <input type="number" id="gravityBaseVal" value="100">
       </div>
     </div>
+
+    <label class="draw-check-row">
+      <input type="checkbox" id="fallOnMatch" checked>
+      Fall on Match
+    </label>
 
     <div class="draw-ledger-box">
       <table>
@@ -128,7 +138,7 @@ const canvas = document.getElementById('simCanvas');
 const ctx    = canvas.getContext('2d');
 
 const config = {
-  drag:        0.002,
+  drag:        0.001,
   fireSpeed:   12,
   gravityBase: 100,
   ballRadius:  12,
@@ -172,8 +182,8 @@ class Ball {
   constructor(x, y, vx, vy, type, id, name, real) {
     this.pos      = new Vector(x, y);
     this.vel      = new Vector(vx, vy);
-    this.type     = type;    // 'team' | 'player' | 'matched'
-    this.origType = type;    // survives fusing
+    this.type     = type;
+    this.origType = type;
     this.id       = id;
     this.name     = name;
     this.real     = real ?? true;
@@ -198,14 +208,94 @@ class Ball {
     ctx.strokeStyle = 'rgba(255,255,255,0.15)';
     ctx.lineWidth = 1;
     ctx.stroke();
-
-    // Label — first word, max 5 chars
-    const label = this.name.split(' ')[0].slice(0, 5);
     ctx.fillStyle = '#fff';
-    ctx.font = `bold 8px system-ui`;
+    ctx.font = 'bold 8px system-ui';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(label, this.pos.x, this.pos.y);
+    ctx.fillText(this.name.split(' ')[0].slice(0, 5), this.pos.x, this.pos.y);
+  }
+}
+
+// ── Magazine ───────────────────────────────────────────────────────────────
+// Slot 0 = chamber (barrel entry point).
+// Slots 1-N = grid of balls below the barrel, filling left-to-right, top-to-bottom.
+
+const MAG_COLS = 4;
+const MAG_STEP = config.ballRadius * 2 + 3; // 27px per cell
+const MAG_START_X = (config.boxLeft - (MAG_COLS * config.ballRadius * 2 + (MAG_COLS - 1) * 3)) / 2 + config.ballRadius;
+const MAG_START_Y = config.barrelCY + config.barrelHalf + 8 + config.ballRadius; // below barrel
+
+function getMagazinePos(slotIdx) {
+  if (slotIdx === 0) {
+    // Chamber — same position as where the physics ball spawns
+    return { x: config.ballRadius, y: config.barrelCY };
+  }
+  const g = slotIdx - 1;
+  return {
+    x: MAG_START_X + (g % MAG_COLS) * MAG_STEP,
+    y: MAG_START_Y + Math.floor(g / MAG_COLS) * MAG_STEP,
+  };
+}
+
+let magSlots      = []; // { player, x, y, alpha }  — waiting slots in order
+let launchSlots   = []; // { player, x, y, alpha }  — currently animating launch
+
+function initMagazine() {
+  magSlots = playerQueue.map((p, i) => {
+    const tp = getMagazinePos(i);
+    return { player: p, x: tp.x, y: tp.y, alpha: 1 };
+  });
+  launchSlots = [];
+}
+
+function fireMagazineSlot() {
+  if (!magSlots.length) return;
+  const s = magSlots.shift(); // remove slot 0 (chamber ball)
+  launchSlots.push(s);        // hand to launch animator
+}
+
+function updateMagazine() {
+  // Remaining slots lerp toward their new target positions
+  magSlots.forEach((s, i) => {
+    const tp = getMagazinePos(i);
+    s.x += (tp.x - s.x) * 0.12;
+    s.y += (tp.y - s.y) * 0.12;
+  });
+
+  // Launching slots drift rightward and fade out
+  for (const s of launchSlots) {
+    s.x    += config.fireSpeed * 0.4;
+    s.alpha = Math.max(0, s.alpha - 0.08);
+  }
+  launchSlots = launchSlots.filter(s => s.alpha > 0);
+}
+
+function drawMagazine() {
+  // Magazine area label
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.font = '7px system-ui';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('QUEUE', config.boxLeft / 2, config.barrelCY + config.barrelHalf + 2);
+
+  const allSlots = [...magSlots, ...launchSlots];
+  for (const s of allSlots) {
+    ctx.save();
+    ctx.globalAlpha = s.alpha;
+    const r = config.ballRadius;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+    ctx.fillStyle = s.player.real ? '#9C27B0' : '#555';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 8px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(s.player.name.split(' ')[0].slice(0, 5), s.x, s.y);
+    ctx.restore();
   }
 }
 
@@ -230,25 +320,66 @@ function initTeams() {
 
 // ── Fire ───────────────────────────────────────────────────────────────────
 const btnFire = document.getElementById('btnFire');
+const btnAuto = document.getElementById('btnAuto');
 btnFire.addEventListener('click', fireNext);
+btnAuto.addEventListener('click', toggleAuto);
+
+let autoInterval = null;
+
+function toggleAuto() {
+  if (autoInterval) {
+    clearInterval(autoInterval);
+    autoInterval = null;
+    btnAuto.textContent = 'Auto-fire All';
+  } else {
+    if (queueIndex >= playerQueue.length) return;
+    fireNext();
+    autoInterval = setInterval(() => {
+      if (queueIndex >= playerQueue.length) {
+        clearInterval(autoInterval);
+        autoInterval = null;
+        btnAuto.textContent = 'Auto-fire All';
+        return;
+      }
+      fireNext();
+    }, 1000);
+    btnAuto.textContent = 'Stop Auto-fire';
+  }
+}
 
 function fireNext() {
   if (queueIndex >= playerQueue.length) return;
-  const p  = playerQueue[queueIndex++];
+  const p = playerQueue[queueIndex++];
+
+  // Animate the chamber ball out, slide the rest up
+  fireMagazineSlot();
+
   const vy = (Math.random() - 0.5) * 3;
   balls.push(new Ball(
-    10, config.barrelCY + (Math.random() - 0.5) * 8,
+    config.ballRadius, config.barrelCY,
     config.fireSpeed, vy,
     'player', p.id, p.name, p.real
   ));
-  if (queueIndex >= playerQueue.length) {
+
+  const allDone = queueIndex >= playerQueue.length;
+  if (allDone) {
     btnFire.disabled    = true;
     btnFire.textContent = 'All fired';
+    btnAuto.disabled    = true;
+    btnAuto.textContent = 'All fired';
   }
+  updateNextUp();
   updateStats();
 }
 
-// ── Gravity ────────────────────────────────────────────────────────────────
+function updateNextUp() {
+  const el = document.getElementById('nextUp');
+  el.textContent = queueIndex < playerQueue.length
+    ? `Next: ${playerQueue[queueIndex].name}`
+    : 'Next: —';
+}
+
+// ── Gravity (player ↔ team attraction) ─────────────────────────────────────
 function applyGravity() {
   const lonePlayers = balls.filter(b => b.type === 'player' && b.inBox);
   const loneTeams   = balls.filter(b => b.type === 'team');
@@ -267,6 +398,14 @@ function applyGravity() {
       pl.vel.x += mag * dx / dist;  pl.vel.y += mag * dy / dist;
       tm.vel.x -= mag * dx / dist;  tm.vel.y -= mag * dy / dist;
     }
+  }
+}
+
+// ── Fall on Match ──────────────────────────────────────────────────────────
+function applyFallOnMatch() {
+  if (!document.getElementById('fallOnMatch').checked) return;
+  for (const b of balls) {
+    if (b.type === 'matched') b.vel.y += 0.18;
   }
 }
 
@@ -325,7 +464,7 @@ function enforceRigidDyads() {
   for (const { b1, b2 } of dyadPairs) {
     const cx  = (b1.pos.x + b2.pos.x) / 2;
     const cy  = (b1.pos.y + b2.pos.y) / 2;
-    let   dx  = b1.pos.x - b2.pos.x,  dy  = b1.pos.y - b2.pos.y;
+    let   dx  = b1.pos.x - b2.pos.x, dy = b1.pos.y - b2.pos.y;
     const mag = Math.sqrt(dx * dx + dy * dy) || 1;
     dx /= mag;  dy /= mag;
     b1.pos.x = cx + dx * b1.radius;  b1.pos.y = cy + dy * b1.radius;
@@ -352,14 +491,12 @@ function handleWalls() {
     if (!b.inBox && b.pos.x > config.boxLeft + r) b.inBox = true;
 
     if (!b.inBox) {
-      // Barrel corridor
       const top = config.barrelCY - config.barrelHalf + r;
       const bot = config.barrelCY + config.barrelHalf - r;
       if (b.pos.y < top) { b.pos.y = top; b.vel.y *= -1; }
       if (b.pos.y > bot) { b.pos.y = bot; b.vel.y *= -1; }
       if (b.pos.x < r)   { b.pos.x = r;   b.vel.x *= -1; }
     } else {
-      // Main box — left wall is solid once inside
       if (b.pos.x < config.boxLeft + r) { b.pos.x = config.boxLeft + r; b.vel.x *= -1; }
       if (b.pos.x > canvas.width  - r)  { b.pos.x = canvas.width  - r; b.vel.x *= -1; }
       if (b.pos.y < r)                  { b.pos.y = r;                  b.vel.y *= -1; }
@@ -408,7 +545,7 @@ function toCanvas(e) {
 
 // ── Render ─────────────────────────────────────────────────────────────────
 function drawEnvironment() {
-  // Barrel surround
+  // Left sidebar (barrel + magazine area)
   ctx.fillStyle = '#161616';
   ctx.fillRect(0, 0, config.boxLeft, canvas.height);
 
@@ -416,7 +553,7 @@ function drawEnvironment() {
   ctx.fillStyle = '#1e1e2e';
   ctx.fillRect(0, config.barrelCY - config.barrelHalf, config.boxLeft, config.barrelHalf * 2);
 
-  // Slit opening highlight (purple)
+  // Slit opening highlight
   ctx.strokeStyle = '#9C27B0';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -438,6 +575,9 @@ function drawEnvironment() {
   ctx.strokeStyle = '#555';
   ctx.lineWidth = 3;
   ctx.strokeRect(config.boxLeft, 0, canvas.width - config.boxLeft, canvas.height);
+
+  // Magazine (drawn over the sidebar)
+  drawMagazine();
 }
 
 // ── Stats & ledger ─────────────────────────────────────────────────────────
@@ -469,7 +609,7 @@ function buildAccept() {
       return player.real ? { player_id: player.id, team_id: team.id } : null;
     })
     .filter(Boolean);
-  document.getElementById('asgn-input').value  = JSON.stringify(assignments);
+  document.getElementById('asgn-input').value = JSON.stringify(assignments);
   document.getElementById('accept-row').style.display = 'block';
 }
 
@@ -479,33 +619,25 @@ function loop() {
   ctx.fillStyle = '#111';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  updateMagazine();
   drawEnvironment();
 
-  // 1. Move (drag applied inside)
   for (const b of balls) b.update();
-
-  // 2. Gravity
   applyGravity();
-
-  // 3. Wall constraints
+  applyFallOnMatch();
   handleWalls();
-
-  // 4. Collisions + velcro detection
   resolveCollisions();
-
-  // 5. Rigid dyad projection
   enforceRigidDyads();
-
-  // 6. Final wall sweep
   handleWalls();
 
-  // Draw
   for (const b of balls) b.draw();
 
   requestAnimationFrame(loop);
 }
 
 initTeams();
+initMagazine();
 updateStats();
+updateNextUp();
 loop();
 </script>
