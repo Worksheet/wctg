@@ -6,10 +6,13 @@
 <p style="font-size:0.85rem;color:#666">You can update your display name here. <% if (!it.currentPlayerId) { %>Select your name on the <a href="/trade">New Trade</a> page to edit your Ntfy topic.<% } else { %>Ntfy topic is editable on your own row.<% } %> Email changes and deleting players require admin access.</p>
 
 <%
-function maskMiddle(s) {
+// Splits a string into revealed ends + blurred middle placeholder.
+// Real data only in start/end — the blurred portion is always placeholder dots.
+function censor(s, revealStart, revealEnd) {
   if (!s) return null;
-  if (s.length <= 6) return { start: '', mid: s, end: '' };
-  return { start: s.slice(0, 3), mid: s.slice(3, -3), end: s.slice(-3) };
+  const start = s.slice(0, revealStart);
+  const end   = revealEnd ? s.slice(-revealEnd) : '';
+  return { start, mid: '••••••', end };
 }
 %>
 <table class="blotter-table">
@@ -22,15 +25,13 @@ function maskMiddle(s) {
     <td><form method="POST" action="/players/<%= p.id %>" style="display:contents">
       <input type="text" name="name" value="<%= p.name %>">
     </td>
-    <td>
-      <% const em = maskMiddle(p.email); %>
+    <td><% const em = censor(p.email, 2, 2); %>
       <% if (em) { %><%= em.start %><span class="censored"><%= em.mid %></span><%= em.end %><% } else { %>—<% } %>
     </td>
     <td>
       <% if (isMe) { %>
       <input type="text" name="ntfy_topic" value="<%= p.ntfy_topic || '' %>" placeholder="e.g. wctg-alice-a1b2">
-      <% } else { %>
-      <% const nt = maskMiddle(p.ntfy_topic); %>
+      <% } else { %><% const nt = censor(p.ntfy_topic, 3, 3); %>
       <% if (nt) { %><%= nt.start %><span class="censored"><%= nt.mid %></span><%= nt.end %><% } else { %><span style="color:#999">—</span><% } %>
       <% } %>
     </td>

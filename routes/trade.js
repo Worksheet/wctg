@@ -68,11 +68,12 @@ router.post('/', async (req, res) => {
   const confirmToken = generateToken();
   const rejectToken  = generateToken();
 
+  const tradeIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
   const { lastInsertRowid: tradeId } = db.run(
-    `INSERT INTO trades (writer_id, counterparty_id, status, confirm_token, reject_token, note)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO trades (writer_id, counterparty_id, status, confirm_token, reject_token, note, ip_address)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [parseInt(writer_id), parseInt(counterparty_id), godMode ? 'confirmed' : 'pending',
-     confirmToken, rejectToken, note || null]
+     confirmToken, rejectToken, note || null, tradeIp]
   );
 
   for (const leg of legs) {

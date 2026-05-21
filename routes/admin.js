@@ -63,14 +63,32 @@ function getSar(db, eventFilter) {
   return rows;
 }
 
+function getIpActivity(db) {
+  return db.all(`
+    SELECT ip, GROUP_CONCAT(DISTINCT player_name) AS players, GROUP_CONCAT(DISTINCT trade_id) AS trades
+    FROM (
+      SELECT le.ip_address AS ip, p.name AS player_name, NULL AS trade_id
+      FROM login_events le JOIN players p ON le.player_id = p.id
+      WHERE le.ip_address IS NOT NULL
+      UNION ALL
+      SELECT t.ip_address AS ip, p.name AS player_name, CAST(t.id AS TEXT) AS trade_id
+      FROM trades t JOIN players p ON t.writer_id = p.id
+      WHERE t.ip_address IS NOT NULL
+    )
+    GROUP BY ip
+    ORDER BY ip
+  `);
+}
+
 function renderAdmin(res, db, req, extra = {}) {
-  const snapshots    = db.all('SELECT id, label, created_at FROM snapshots ORDER BY id DESC');
-  const eventFilter  = (req.query && req.query.event) || '';
-  const sar          = getSar(db, eventFilter);
+  const snapshots     = db.all('SELECT id, label, created_at FROM snapshots ORDER BY id DESC');
+  const eventFilter   = (req.query && req.query.event) || '';
+  const sar           = getSar(db, eventFilter);
   const sarEventTypes = getSar(db).map(r => r.event_type).filter((v, i, a) => a.indexOf(v) === i).sort();
-  const admin        = isAdmin(req);
-  const players      = admin ? db.all('SELECT * FROM players ORDER BY display_order') : [];
-  res.render('admin', { title: 'Admin', snapshots, sar, sarEventTypes, sarEventFilter: eventFilter, players, isAdmin: admin, loginError: false, error: null, ...extra });
+  const admin         = isAdmin(req);
+  const players       = admin ? db.all('SELECT * FROM players ORDER BY display_order') : [];
+  const ipActivity    = admin ? getIpActivity(db) : [];
+  res.render('admin', { title: 'Admin', snapshots, sar, sarEventTypes, sarEventFilter: eventFilter, players, isAdmin: admin, ipActivity, loginError: false, error: null, ...extra });
 }
 
 // ── God mode (admin only) ─────────────────────────────────────────────────────

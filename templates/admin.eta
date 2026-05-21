@@ -121,7 +121,7 @@
 <% } else { %>
 <table class="blotter-table">
   <thead>
-    <tr><th>When</th><th>Event</th><th>Actor</th><th>Detail</th><th>IP</th><th>User agent</th></tr>
+    <tr><th>When</th><th>Event</th><th>Logged in as</th><th>Detail</th><th>IP</th><th>User agent</th></tr>
   </thead>
   <tbody>
   <% for (const e of it.sar) { %>
@@ -132,6 +132,25 @@
     <td><%= e.detail || '—' %></td>
     <td><code><%= e.ip_address || '—' %></code></td>
     <td style="font-size:0.75rem;max-width:250px;word-break:break-all"><%= e.user_agent || '—' %></td>
+  </tr>
+  <% } %>
+  </tbody>
+</table>
+<% } %>
+
+<% if (it.isAdmin && it.ipActivity && it.ipActivity.length) { %>
+<h2>IP Activity</h2>
+<p style="font-size:0.85rem;color:#666">Each IP seen logging in or submitting a trade. Multiple identities on one IP may indicate impersonation.</p>
+<table class="blotter-table">
+  <thead>
+    <tr><th>IP</th><th>Player identities seen</th><th>Trade IDs submitted</th></tr>
+  </thead>
+  <tbody>
+  <% for (const row of it.ipActivity) { %>
+  <tr>
+    <td><code><%= row.ip %></code></td>
+    <td><%= row.players || '—' %></td>
+    <td><%= row.trades || '—' %></td>
   </tr>
   <% } %>
   </tbody>

@@ -121,6 +121,7 @@ function migrate() {
     `ALTER TABLE trades ADD COLUMN expires_at TEXT`,
     `ALTER TABLE security_events ADD COLUMN read INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE login_events ADD COLUMN read INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE trades ADD COLUMN ip_address TEXT`,
   ];
   for (const sql of additions) {
     try { _db.exec(sql); } catch (_) { /* column already exists */ }
