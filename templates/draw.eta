@@ -177,6 +177,26 @@ class Vector {
   }
 }
 
+// ── Flag emoji map ─────────────────────────────────────────────────────────
+const FLAG_EMOJIS = {
+  'Algeria': '🇩🇿', 'Argentina': '🇦🇷', 'Australia': '🇦🇺',
+  'Austria': '🇦🇹', 'Belgium': '🇧🇪', 'Bosnia and Herzegovina': '🇧🇦',
+  'Brazil': '🇧🇷', 'Canada': '🇨🇦', 'Cape Verde': '🇨🇻',
+  'Colombia': '🇨🇴', 'Croatia': '🇭🇷', 'Czechia': '🇨🇿',
+  'Curaçao': '🇨🇼', 'DR Congo': '🇨🇩', 'Ecuador': '🇪🇨',
+  'Egypt': '🇪🇬', 'England': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'France': '🇫🇷',
+  'Germany': '🇩🇪', 'Ghana': '🇬🇭', 'Haiti': '🇭🇹',
+  'Iran': '🇮🇷', 'Iraq': '🇮🇶', 'Ivory Coast': '🇨🇮',
+  'Japan': '🇯🇵', 'Jordan': '🇯🇴', 'Mexico': '🇲🇽',
+  'Morocco': '🇲🇦', 'Netherlands': '🇳🇱', 'New Zealand': '🇳🇿',
+  'Norway': '🇳🇴', 'Panama': '🇵🇦', 'Paraguay': '🇵🇾',
+  'Portugal': '🇵🇹', 'Qatar': '🇶🇦', 'Saudi Arabia': '🇸🇦',
+  'Scotland': '🏴󠁧󠁢󠁳󠁣󠁴󠁿', 'Senegal': '🇸🇳', 'South Africa': '🇿🇦',
+  'South Korea': '🇰🇷', 'Spain': '🇪🇸', 'Sweden': '🇸🇪',
+  'Switzerland': '🇨🇭', 'Tunisia': '🇹🇳', 'Turkey': '🇹🇷',
+  'United States': '🇺🇸', 'Uruguay': '🇺🇾', 'Uzbekistan': '🇺🇿',
+};
+
 // ── Ball ───────────────────────────────────────────────────────────────────
 class Ball {
   constructor(x, y, vx, vy, type, id, name, real) {
@@ -190,6 +210,7 @@ class Ball {
     this.radius   = config.ballRadius;
     this.pairId   = null;
     this.inBox    = (type === 'team');
+    this.flag     = type === 'team' ? (FLAG_EMOJIS[name] ?? '') : '';
   }
 
   update() {
@@ -201,18 +222,25 @@ class Ball {
     const r = this.radius;
     ctx.beginPath();
     ctx.arc(this.pos.x, this.pos.y, r, 0, Math.PI * 2);
-    if      (this.type === 'team')   ctx.fillStyle = '#2196F3';
+    if      (this.type === 'team')   ctx.fillStyle = 'rgba(33,150,243,0.2)';
     else if (this.type === 'player') ctx.fillStyle = '#9C27B0';
     else                             ctx.fillStyle = '#F44336';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+    ctx.strokeStyle = this.type === 'team' ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)';
     ctx.lineWidth = 1;
     ctx.stroke();
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 8px system-ui';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(this.name.split(' ')[0].slice(0, 5), this.pos.x, this.pos.y);
+    if (this.origType === 'team' && this.flag) {
+      ctx.font = '16px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.flag, this.pos.x, this.pos.y);
+    } else {
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 8px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.name.split(' ')[0].slice(0, 5), this.pos.x, this.pos.y);
+    }
   }
 }
 
