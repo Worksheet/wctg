@@ -87,7 +87,7 @@ function renderAdmin(res, db, req, extra = {}) {
   const sarEventTypes = getSar(db).map(r => r.event_type).filter((v, i, a) => a.indexOf(v) === i).sort();
   const admin         = isAdmin(req);
   const players       = admin ? db.all('SELECT * FROM players ORDER BY display_order') : [];
-  const ipActivity    = admin ? getIpActivity(db) : [];
+  const ipActivity    = getIpActivity(db);
   res.render('admin', { title: 'Admin', snapshots, sar, sarEventTypes, sarEventFilter: eventFilter, players, isAdmin: admin, ipActivity, loginError: false, error: null, ...extra });
 }
 
@@ -239,7 +239,7 @@ router.post('/clear', requireAdmin, (req, res) => {
 
 // ── Excel (admin only) ────────────────────────────────────────────────────────
 
-router.get('/export.xlsx', requireAdmin, async (req, res) => {
+router.get('/export.xlsx', async (req, res) => {
   const db = getDb(req);
   const wb = await exportWorkbook(db);
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
