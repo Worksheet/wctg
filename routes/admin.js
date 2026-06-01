@@ -206,6 +206,37 @@ router.post('/snapshot/:id/revert', requireAdmin, (req, res) => {
   res.redirect('/admin');
 });
 
+// ── Tournament reset (admin only) ─────────────────────────────────────────────
+
+router.post('/clear', requireAdmin, (req, res) => {
+  const db = getDb(req);
+  const sel = {
+    trades:       !!req.body.clear_trades,
+    sar:          !!req.body.clear_sar,
+    draw_results: !!req.body.clear_draw_results,
+    players:      !!req.body.clear_players,
+    teams:        !!req.body.clear_teams,
+  };
+
+  if (!Object.values(sel).some(Boolean)) {
+    return renderAdmin(res, db, req, { error: 'Select at least one item to clear.' });
+  }
+
+  takeSnapshot(db, `pre-clear ${new Date().toISOString()}`);
+
+  const stmts = [];
+  // FK-safe order: dependents first
+  if (sel.trades)       stmts.push('DELETE FROM trade_legs', 'DELETE FROM trades');
+  if (sel.sar)          stmts.push('DELETE FROM security_events', 'DELETE FROM login_events');
+  if (sel.draw_results) stmts.push('DELETE FROM draw_results');
+  if (sel.players)      stmts.push('DELETE FROM players');
+  if (sel.teams)        stmts.push('DELETE FROM teams');
+
+  db.exec(stmts.join('; '));
+  logSecurityEvent(db, req, 'admin-db-clear', null, JSON.stringify(sel));
+  res.redirect('/admin');
+});
+
 // ── Excel (admin only) ────────────────────────────────────────────────────────
 
 router.get('/export.xlsx', requireAdmin, async (req, res) => {

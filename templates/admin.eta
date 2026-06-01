@@ -93,6 +93,29 @@
   <input type="file" name="file" accept=".xlsx" required>
   <button type="submit">Import and overwrite</button>
 </form>
+
+<h2>Tournament Reset</h2>
+<p style="font-size:0.85rem;color:#c00">Permanently delete data to start fresh. A snapshot is taken automatically before any data is cleared.</p>
+<form method="POST" action="/admin/clear" onsubmit="return confirmClear(this)">
+  <div style="display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.75rem">
+    <label><input type="checkbox" name="clear_trades"> <strong>Trades</strong> — all trades and trade legs</label>
+    <label><input type="checkbox" name="clear_sar"> <strong>SAR</strong> — suspicious activity and login event logs</label>
+    <label><input type="checkbox" name="clear_draw_results"> <strong>Draw results</strong> — team draw assignments</label>
+    <label><input type="checkbox" name="clear_players"> <strong>Players</strong> — all player records</label>
+    <label><input type="checkbox" name="clear_teams"> <strong>Teams</strong> — all team records</label>
+  </div>
+  <button type="submit" style="background:#c00;color:#fff;border-color:#c00">Clear selected</button>
+</form>
+<script>
+function confirmClear(form) {
+  const labels = [];
+  form.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+    labels.push(cb.parentElement.querySelector('strong').textContent);
+  });
+  if (!labels.length) { alert('Select at least one item to clear.'); return false; }
+  return confirm('This will permanently delete: ' + labels.join(', ') + '.\nA snapshot is taken first. Continue?');
+}
+</script>
 <% } %>
 
 <div style="display:flex;align-items:baseline;gap:1rem">
