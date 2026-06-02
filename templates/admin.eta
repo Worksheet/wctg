@@ -57,6 +57,33 @@
   <input type="text" name="ntfy_topic" placeholder="Ntfy topic (optional)">
   <button type="submit">Add</button>
 </form>
+<h3>Bulk upload players</h3>
+<p style="font-size:0.85rem;color:#666">Upload a CSV or XLSX file. The first row must be headers <strong>Name</strong> and <strong>Email</strong>.</p>
+<form method="POST" action="/admin/players/upload" enctype="multipart/form-data" onsubmit="return confirmPlayerUpload(this)">
+  <div style="margin-bottom:0.5rem">
+    <input type="file" name="file" accept=".csv,.xlsx" required>
+  </div>
+  <div style="margin-bottom:0.75rem;display:flex;flex-direction:column;gap:0.4rem">
+    <label style="cursor:pointer">
+      <input type="radio" name="mode" value="merge" checked>
+      <strong>Merge</strong> — add only new players; skip emails that already exist
+    </label>
+    <label style="cursor:pointer">
+      <input type="radio" name="mode" value="overwrite">
+      <strong>Overwrite</strong> — delete all current players and their trades, then upload new list
+    </label>
+  </div>
+  <button type="submit">Upload players</button>
+</form>
+<script>
+function confirmPlayerUpload(form) {
+  const mode = form.querySelector('input[name=mode]:checked').value;
+  if (mode === 'overwrite') {
+    return confirm('Overwrite mode will delete ALL current players and their trades. A snapshot is taken first. Continue?');
+  }
+  return confirm('Merge mode will add new players (existing emails are skipped). A snapshot is taken first. Continue?');
+}
+</script>
 <% } %>
 
 <h2>Snapshots</h2>

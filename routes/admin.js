@@ -2,7 +2,7 @@ const express = require('express');
 const router  = express.Router();
 const multer  = require('multer');
 const crypto  = require('crypto');
-const { exportWorkbook, importWorkbook } = require('../lib/excel');
+const { exportWorkbook, importWorkbook, parsePlayersFile } = require('../lib/excel');
 
 const upload     = multer({ storage: multer.memoryStorage() });
 const ADMIN_PASS = process.env.WCTG_ADMIN_PASS || 'changeme';
@@ -138,6 +138,44 @@ router.post('/players', requireAdmin, (req, res) => {
   const order = (db.get('SELECT MAX(display_order) AS m FROM players') || {}).m || 0;
   db.run('INSERT INTO players (name,email,ntfy_topic,display_order) VALUES (?,?,?,?)',
     [name, email, ntfy_topic || null, order + 1]);
+  res.redirect('/admin');
+});
+
+router.post('/players/upload', requireAdmin, upload.single('file'), async (req, res) => {
+  const db   = getDb(req);
+  const mode = req.body.mode;
+
+  if (!req.file) return renderAdmin(res, db, req, { error: 'No file uploaded.' });
+  if (mode !== 'overwrite' && mode !== 'merge') {
+    return renderAdmin(res, db, req, { error: 'Invalid upload mode.' });
+  }
+
+  const result = await parsePlayersFile(req.file.buffer, req.file.originalname);
+  if (!result.ok)        return renderAdmin(res, db, req, { error: result.error });
+  if (!result.players.length) return renderAdmin(res, db, req, { error: 'No valid players found in file.' });
+
+  takeSnapshot(db, `pre-player-upload-${mode} ${new Date().toISOString()}`);
+
+  if (mode === 'overwrite') {
+    db.exec('DELETE FROM trade_legs; DELETE FROM trades; DELETE FROM players;');
+    let order = 1;
+    for (const p of result.players) {
+      db.run('INSERT INTO players (name, email, display_order) VALUES (?,?,?)', [p.name, p.email, order++]);
+    }
+  } else {
+    const existingEmails = new Set(
+      db.all('SELECT email FROM players').map(r => r.email.toLowerCase())
+    );
+    const toInsert = result.players.filter(p => !existingEmails.has(p.email.toLowerCase()));
+    const maxOrder = (db.get('SELECT MAX(display_order) AS m FROM players') || {}).m || 0;
+    let order = maxOrder + 1;
+    for (const p of toInsert) {
+      db.run('INSERT INTO players (name, email, display_order) VALUES (?,?,?)', [p.name, p.email, order++]);
+    }
+  }
+
+  logSecurityEvent(db, req, 'player-bulk-upload', null,
+    JSON.stringify({ mode, count: result.players.length }));
   res.redirect('/admin');
 });
 
