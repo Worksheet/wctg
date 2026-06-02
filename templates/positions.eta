@@ -3,14 +3,113 @@
   main { max-width: none !important; }
   .pos-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
   .pos-header h1 { margin: 0; border-bottom: none; padding-bottom: 0; }
+  /* Sticky first column */
+  .positions-table thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #e8e8e0;
+  }
+  .positions-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #f5f5f0;
+  }
+  .positions-table tbody tr:nth-child(even) td:first-child {
+    background: #fafaf5;
+  }
+  /* Filter section */
+  .filter-section {
+    margin-bottom: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+    max-width: 700px;
+  }
+  .filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    background: #e8e8e0;
+    user-select: none;
+    font-weight: bold;
+  }
+  .filter-toggle:hover { background: #d8d8d0; }
+  .filter-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease;
+    font-size: 0.75rem;
+  }
+  .filter-arrow.open { transform: rotate(90deg); }
+  .filter-body {
+    display: none;
+    padding: 0.75rem;
+    background: #fafaf8;
+  }
+  .filter-body.open { display: block; }
+  .filter-columns {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .filter-col { flex: 1; min-width: 140px; }
+  .filter-col strong {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+  }
+  .filter-list {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+  }
+  .filter-item {
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #eee;
+  }
+  .filter-item:last-child { border-bottom: none; }
+  .filter-item:hover { background: #eef2ff; }
+  .filter-item.selected { background: #4a90e2; color: #fff; }
+  .filter-item.selected:hover { background: #357abd; }
 </style>
 <div id="positions-page">
   <div class="pos-header">
     <h1>Positions</h1>
     <button id="btn-fullscreen">Full Screen</button>
     <button id="btn-hide-empty">Hide Empty Players</button>
+    <button id="btn-transpose">Transpose</button>
   </div>
   <p>Confirmed trades only.</p>
+
+  <div class="filter-section">
+    <div class="filter-toggle" id="filter-toggle">
+      <span class="filter-arrow" id="filter-arrow">&#9654;</span>
+      <span>Filter</span>
+    </div>
+    <div class="filter-body" id="filter-body">
+      <div class="filter-columns">
+        <div class="filter-col">
+          <strong>Players</strong>
+          <div class="filter-list" id="filter-players"></div>
+        </div>
+        <div class="filter-col">
+          <strong>Teams</strong>
+          <div class="filter-list" id="filter-teams"></div>
+        </div>
+      </div>
+      <button id="btn-filter">Filter</button>
+    </div>
+  </div>
 
   <div class="positions-wrap">
   <table class="positions-table">
@@ -55,16 +154,79 @@
     }
   });
 
+  // --- Transpose ---
+  var btnTranspose = document.getElementById('btn-transpose');
+  var transposed = false;
+  var origData = captureCurrentData();
+
+  function captureCurrentData() {
+    var ths = Array.from(table.querySelectorAll('thead tr th'));
+    var headers = ths.map(function (th) { return th.textContent.trim(); });
+
+    var bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+    var rows = bodyRows.map(function (tr) {
+      var tds = Array.from(tr.querySelectorAll('td'));
+      return tds.map(function (td, idx) {
+        return { text: td.textContent.trim(), cls: idx === 0 ? '' : td.className };
+      });
+    });
+
+    return { headers: headers, rows: rows };
+  }
+
+  function renderTable(data) {
+    var headerRow = table.querySelector('thead tr');
+    headerRow.innerHTML = '';
+    data.headers.forEach(function (h) {
+      var th = document.createElement('th');
+      th.textContent = h;
+      headerRow.appendChild(th);
+    });
+
+    var tbody = table.querySelector('tbody');
+    tbody.innerHTML = '';
+    data.rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      row.forEach(function (cell, idx) {
+        var td = document.createElement('td');
+        td.textContent = cell.text;
+        td.className = idx === 0 ? 'team-name' : (cell.cls || '');
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function transposeData(data) {
+    var newHeaders = ['Player'];
+    data.rows.forEach(function (row) { newHeaders.push(row[0].text); });
+
+    var newRows = [];
+    for (var i = 1; i < data.headers.length; i++) {
+      var row = [{ text: data.headers[i], cls: '' }];
+      data.rows.forEach(function (origRow) {
+        row.push({ text: origRow[i].text, cls: origRow[i].cls });
+      });
+      newRows.push(row);
+    }
+
+    return { headers: newHeaders, rows: newRows };
+  }
+
+  // --- Hide Empty Players ---
   var btnHideEmpty = document.getElementById('btn-hide-empty');
   var hidingEmpty = false;
+  var emptyColIndices = getEmptyColIndices();
 
   function getEmptyColIndices() {
     var ths = table.querySelectorAll('thead tr th');
     var empty = [];
     for (var i = 1; i < ths.length; i++) {
+      if (ths[i].style.display === 'none') continue;
       var rows = table.querySelectorAll('tbody tr');
       var hasValue = false;
       for (var r = 0; r < rows.length; r++) {
+        if (rows[r].style.display === 'none') continue;
         var tds = rows[r].querySelectorAll('td');
         if (tds[i] && tds[i].textContent.trim() !== '') { hasValue = true; break; }
       }
@@ -85,7 +247,21 @@
     });
   }
 
-  var emptyColIndices = getEmptyColIndices();
+  function refreshHideEmpty() {
+    if (hidingEmpty) {
+      setColVisibility(emptyColIndices, false);
+      hidingEmpty = false;
+      btnHideEmpty.textContent = 'Hide Empty Players';
+    }
+    emptyColIndices = getEmptyColIndices();
+    if (emptyColIndices.length === 0) {
+      btnHideEmpty.disabled = true;
+      btnHideEmpty.title = 'No empty player columns';
+    } else {
+      btnHideEmpty.disabled = false;
+      btnHideEmpty.title = '';
+    }
+  }
 
   if (emptyColIndices.length === 0) {
     btnHideEmpty.disabled = true;
@@ -96,6 +272,16 @@
     hidingEmpty = !hidingEmpty;
     setColVisibility(emptyColIndices, hidingEmpty);
     btnHideEmpty.textContent = hidingEmpty ? 'Show All Players' : 'Hide Empty Players';
+  });
+
+  btnTranspose.addEventListener('click', function () {
+    transposed = !transposed;
+    var dataToRender = transposed ? transposeData(origData) : origData;
+    renderTable(dataToRender);
+    refreshHideEmpty();
+    buildFilterLists();
+    btnTranspose.textContent = transposed ? 'Untranspose' : 'Transpose';
+    if (document.fullscreenElement === page) { fitTableFont(); }
   });
 
   document.addEventListener('fullscreenchange', function () {
@@ -109,9 +295,8 @@
   });
 
   function fitTableFont() {
-    var header = page.querySelector('.pos-header');
-    var pEl = page.querySelector('p');
-    var headerH = (header ? header.offsetHeight : 0) + (pEl ? pEl.offsetHeight + 16 : 0);
+    var posWrap = page.querySelector('.positions-wrap');
+    var headerH = posWrap ? posWrap.offsetTop : 0;
     var availW = page.clientWidth - 48;
     var availH = page.clientHeight - headerH - 48;
 
@@ -124,5 +309,121 @@
       table.style.fontSize = size + 'px';
     }
   }
+
+  // --- Filter ---
+  var filterToggle = document.getElementById('filter-toggle');
+  var filterArrow = document.getElementById('filter-arrow');
+  var filterBody = document.getElementById('filter-body');
+  var btnFilter = document.getElementById('btn-filter');
+
+  filterToggle.addEventListener('click', function () {
+    filterBody.classList.toggle('open');
+    filterArrow.classList.toggle('open');
+  });
+
+  function buildFilterLists() {
+    var playersDiv = document.getElementById('filter-players');
+    var teamsDiv = document.getElementById('filter-teams');
+    playersDiv.innerHTML = '';
+    teamsDiv.innerHTML = '';
+
+    var ths = Array.from(table.querySelectorAll('thead tr th'));
+    var rows = Array.from(table.querySelectorAll('tbody tr'));
+
+    if (!transposed) {
+      for (var i = 1; i < ths.length; i++) {
+        addFilterItem(playersDiv, ths[i].textContent.trim(), 'player');
+      }
+      rows.forEach(function (row) {
+        var cell = row.querySelector('td');
+        if (cell) addFilterItem(teamsDiv, cell.textContent.trim(), 'team');
+      });
+    } else {
+      rows.forEach(function (row) {
+        var cell = row.querySelector('td');
+        if (cell) addFilterItem(playersDiv, cell.textContent.trim(), 'player');
+      });
+      for (var i = 1; i < ths.length; i++) {
+        addFilterItem(teamsDiv, ths[i].textContent.trim(), 'team');
+      }
+    }
+  }
+
+  function addFilterItem(container, text, type) {
+    var item = document.createElement('div');
+    item.className = 'filter-item';
+    item.textContent = text;
+    item.dataset.type = type;
+    item.addEventListener('click', function () {
+      item.classList.toggle('selected');
+    });
+    container.appendChild(item);
+  }
+
+  function applyFilter() {
+    var playersDiv = document.getElementById('filter-players');
+    var teamsDiv = document.getElementById('filter-teams');
+
+    var selPlayers = Array.from(playersDiv.querySelectorAll('.filter-item.selected')).map(function (el) { return el.textContent.trim(); });
+    var selTeams = Array.from(teamsDiv.querySelectorAll('.filter-item.selected')).map(function (el) { return el.textContent.trim(); });
+
+    var ths = Array.from(table.querySelectorAll('thead tr th'));
+    var rows = Array.from(table.querySelectorAll('tbody tr'));
+
+    // Reset all visibility before applying new filter
+    ths.forEach(function (th) { th.style.display = ''; });
+    rows.forEach(function (row) {
+      row.style.display = '';
+      Array.from(row.querySelectorAll('td')).forEach(function (td) { td.style.display = ''; });
+    });
+
+    if (!transposed) {
+      if (selPlayers.length > 0) {
+        for (var i = 1; i < ths.length; i++) {
+          if (selPlayers.indexOf(ths[i].textContent.trim()) === -1) {
+            ths[i].style.display = 'none';
+            rows.forEach(function (row) {
+              var tds = row.querySelectorAll('td');
+              if (tds[i]) tds[i].style.display = 'none';
+            });
+          }
+        }
+      }
+      if (selTeams.length > 0) {
+        rows.forEach(function (row) {
+          var cell = row.querySelector('td');
+          if (cell && selTeams.indexOf(cell.textContent.trim()) === -1) {
+            row.style.display = 'none';
+          }
+        });
+      }
+    } else {
+      if (selPlayers.length > 0) {
+        rows.forEach(function (row) {
+          var cell = row.querySelector('td');
+          if (cell && selPlayers.indexOf(cell.textContent.trim()) === -1) {
+            row.style.display = 'none';
+          }
+        });
+      }
+      if (selTeams.length > 0) {
+        for (var i = 1; i < ths.length; i++) {
+          if (selTeams.indexOf(ths[i].textContent.trim()) === -1) {
+            ths[i].style.display = 'none';
+            rows.forEach(function (row) {
+              var tds = row.querySelectorAll('td');
+              if (tds[i]) tds[i].style.display = 'none';
+            });
+          }
+        }
+      }
+    }
+
+    refreshHideEmpty();
+  }
+
+  btnFilter.addEventListener('click', applyFilter);
+
+  buildFilterLists();
 })();
 </script>
