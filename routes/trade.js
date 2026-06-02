@@ -69,20 +69,22 @@ router.post('/', async (req, res) => {
   const rejectToken  = generateToken();
 
   const tradeIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  const { lastInsertRowid: tradeId } = db.run(
-    `INSERT INTO trades (writer_id, counterparty_id, status, confirm_token, reject_token, note, ip_address)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [parseInt(writer_id), parseInt(counterparty_id), godMode ? 'confirmed' : 'pending',
-     confirmToken, rejectToken, note || null, tradeIp]
-  );
-
-  for (const leg of legs) {
-    db.run(
-      `INSERT INTO trade_legs (trade_id, side, team_id, quantity, leg_type, cash_amount, swap_team_id, swap_quantity)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [tradeId, leg.side, leg.team_id, leg.quantity, leg.leg_type, leg.cash_amount, leg.swap_team_id, leg.swap_quantity]
+  const { lastInsertRowid: tradeId } = db.transaction(tx => {
+    const { lastInsertRowid } = tx.run(
+      `INSERT INTO trades (writer_id, counterparty_id, status, confirm_token, reject_token, note, ip_address)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [parseInt(writer_id), parseInt(counterparty_id), godMode ? 'confirmed' : 'pending',
+       confirmToken, rejectToken, note || null, tradeIp]
     );
-  }
+    for (const leg of legs) {
+      tx.run(
+        `INSERT INTO trade_legs (trade_id, side, team_id, quantity, leg_type, cash_amount, swap_team_id, swap_quantity)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [lastInsertRowid, leg.side, leg.team_id, leg.quantity, leg.leg_type, leg.cash_amount, leg.swap_team_id, leg.swap_quantity]
+      );
+    }
+    return { lastInsertRowid };
+  });
 
   const host       = `${req.protocol}://${req.get('host')}`;
   const confirmUrl = `${host}/trade/${tradeId}/confirm?token=${confirmToken}`;
@@ -177,11 +179,13 @@ router.get('/:id/confirm', (req, res) => {
     }
   }
 
-  applyResponse(db, trade, 'confirmed');
-  // When an amendment is confirmed, mark the original trade as amended
-  if (trade.amended_from_id) {
-    db.run(`UPDATE trades SET status='amended', updated_at=datetime('now') WHERE id=?`, [trade.amended_from_id]);
-  }
+  db.transaction(tx => {
+    tx.run(`UPDATE trades SET status=?, updated_at=datetime('now') WHERE id=?`, ['confirmed', trade.id]);
+    // When an amendment is confirmed, mark the original trade as amended atomically
+    if (trade.amended_from_id) {
+      tx.run(`UPDATE trades SET status='amended', updated_at=datetime('now') WHERE id=?`, [trade.amended_from_id]);
+    }
+  });
   notify(
     db.get('SELECT * FROM players WHERE id=?', [trade.writer_id]),
     `Trade #${trade.id} confirmed`,
