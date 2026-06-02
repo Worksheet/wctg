@@ -8,6 +8,7 @@
   <div class="pos-header">
     <h1>Positions</h1>
     <button id="btn-fullscreen">Full Screen</button>
+    <button id="btn-hide-empty">Hide Empty Players</button>
   </div>
   <p>Confirmed trades only.</p>
 
@@ -52,6 +53,49 @@
     } else {
       document.exitFullscreen();
     }
+  });
+
+  var btnHideEmpty = document.getElementById('btn-hide-empty');
+  var hidingEmpty = false;
+
+  function getEmptyColIndices() {
+    var ths = table.querySelectorAll('thead tr th');
+    var empty = [];
+    for (var i = 1; i < ths.length; i++) {
+      var rows = table.querySelectorAll('tbody tr');
+      var hasValue = false;
+      for (var r = 0; r < rows.length; r++) {
+        var tds = rows[r].querySelectorAll('td');
+        if (tds[i] && tds[i].textContent.trim() !== '') { hasValue = true; break; }
+      }
+      if (!hasValue) empty.push(i);
+    }
+    return empty;
+  }
+
+  function setColVisibility(indices, hidden) {
+    var ths = table.querySelectorAll('thead tr th');
+    var rows = table.querySelectorAll('tbody tr');
+    indices.forEach(function (i) {
+      if (ths[i]) ths[i].style.display = hidden ? 'none' : '';
+      rows.forEach(function (row) {
+        var tds = row.querySelectorAll('td');
+        if (tds[i]) tds[i].style.display = hidden ? 'none' : '';
+      });
+    });
+  }
+
+  var emptyColIndices = getEmptyColIndices();
+
+  if (emptyColIndices.length === 0) {
+    btnHideEmpty.disabled = true;
+    btnHideEmpty.title = 'No empty player columns';
+  }
+
+  btnHideEmpty.addEventListener('click', function () {
+    hidingEmpty = !hidingEmpty;
+    setColVisibility(emptyColIndices, hidingEmpty);
+    btnHideEmpty.textContent = hidingEmpty ? 'Show All Players' : 'Hide Empty Players';
   });
 
   document.addEventListener('fullscreenchange', function () {
