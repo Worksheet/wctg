@@ -3,12 +3,29 @@
   main { max-width: none !important; }
   .pos-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
   .pos-header h1 { margin: 0; border-bottom: none; padding-bottom: 0; }
+  /* Sticky first column */
+  .positions-table thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #e8e8e0;
+  }
+  .positions-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #f5f5f0;
+  }
+  .positions-table tbody tr:nth-child(even) td:first-child {
+    background: #fafaf5;
+  }
 </style>
 <div id="positions-page">
   <div class="pos-header">
     <h1>Positions</h1>
     <button id="btn-fullscreen">Full Screen</button>
     <button id="btn-hide-empty">Hide Empty Players</button>
+    <button id="btn-transpose">Transpose</button>
   </div>
   <p>Confirmed trades only.</p>
 
@@ -55,8 +72,69 @@
     }
   });
 
+  // --- Transpose ---
+  var btnTranspose = document.getElementById('btn-transpose');
+  var transposed = false;
+  var origData = captureCurrentData();
+
+  function captureCurrentData() {
+    var ths = Array.from(table.querySelectorAll('thead tr th'));
+    var headers = ths.map(function (th) { return th.textContent.trim(); });
+
+    var bodyRows = Array.from(table.querySelectorAll('tbody tr'));
+    var rows = bodyRows.map(function (tr) {
+      var tds = Array.from(tr.querySelectorAll('td'));
+      return tds.map(function (td, idx) {
+        return { text: td.textContent.trim(), cls: idx === 0 ? '' : td.className };
+      });
+    });
+
+    return { headers: headers, rows: rows };
+  }
+
+  function renderTable(data) {
+    var headerRow = table.querySelector('thead tr');
+    headerRow.innerHTML = '';
+    data.headers.forEach(function (h) {
+      var th = document.createElement('th');
+      th.textContent = h;
+      headerRow.appendChild(th);
+    });
+
+    var tbody = table.querySelector('tbody');
+    tbody.innerHTML = '';
+    data.rows.forEach(function (row) {
+      var tr = document.createElement('tr');
+      row.forEach(function (cell, idx) {
+        var td = document.createElement('td');
+        td.textContent = cell.text;
+        td.className = idx === 0 ? 'team-name' : (cell.cls || '');
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function transposeData(data) {
+    var newHeaders = ['Player'];
+    data.rows.forEach(function (row) { newHeaders.push(row[0].text); });
+
+    var newRows = [];
+    for (var i = 1; i < data.headers.length; i++) {
+      var row = [{ text: data.headers[i], cls: '' }];
+      data.rows.forEach(function (origRow) {
+        row.push({ text: origRow[i].text, cls: origRow[i].cls });
+      });
+      newRows.push(row);
+    }
+
+    return { headers: newHeaders, rows: newRows };
+  }
+
+  // --- Hide Empty Players ---
   var btnHideEmpty = document.getElementById('btn-hide-empty');
   var hidingEmpty = false;
+  var emptyColIndices = getEmptyColIndices();
 
   function getEmptyColIndices() {
     var ths = table.querySelectorAll('thead tr th');
@@ -85,7 +163,21 @@
     });
   }
 
-  var emptyColIndices = getEmptyColIndices();
+  function refreshHideEmpty() {
+    if (hidingEmpty) {
+      setColVisibility(emptyColIndices, false);
+      hidingEmpty = false;
+      btnHideEmpty.textContent = 'Hide Empty Players';
+    }
+    emptyColIndices = getEmptyColIndices();
+    if (emptyColIndices.length === 0) {
+      btnHideEmpty.disabled = true;
+      btnHideEmpty.title = 'No empty player columns';
+    } else {
+      btnHideEmpty.disabled = false;
+      btnHideEmpty.title = '';
+    }
+  }
 
   if (emptyColIndices.length === 0) {
     btnHideEmpty.disabled = true;
@@ -96,6 +188,15 @@
     hidingEmpty = !hidingEmpty;
     setColVisibility(emptyColIndices, hidingEmpty);
     btnHideEmpty.textContent = hidingEmpty ? 'Show All Players' : 'Hide Empty Players';
+  });
+
+  btnTranspose.addEventListener('click', function () {
+    transposed = !transposed;
+    var dataToRender = transposed ? transposeData(origData) : origData;
+    renderTable(dataToRender);
+    refreshHideEmpty();
+    btnTranspose.textContent = transposed ? 'Untranspose' : 'Transpose';
+    if (document.fullscreenElement === page) { fitTableFont(); }
   });
 
   document.addEventListener('fullscreenchange', function () {
