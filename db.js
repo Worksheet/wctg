@@ -128,6 +128,27 @@ function migrate() {
   }
 }
 
+function transaction(fn) {
+  _db.exec('BEGIN');
+  try {
+    const result = fn({
+      run(sql, params = []) {
+        _db.run(sql, params);
+        const row = all('SELECT last_insert_rowid() as id')[0] || null;
+        return { lastInsertRowid: row ? row.id : null };
+      },
+      get,
+      all,
+    });
+    _db.exec('COMMIT');
+    save();
+    return result;
+  } catch (err) {
+    try { _db.exec('ROLLBACK'); } catch (_) {}
+    throw err;
+  }
+}
+
 async function init() {
   const SQL = await initSqlJs();
   if (fs.existsSync(DB_PATH)) {
@@ -138,7 +159,7 @@ async function init() {
   _db.exec(SCHEMA);
   migrate();
   save();
-  return { all, get, run, exec, save };
+  return { all, get, run, exec, save, transaction };
 }
 
 module.exports = { init };
