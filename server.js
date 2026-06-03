@@ -4,6 +4,7 @@ const fs           = require('fs');
 const cookieParser = require('cookie-parser');
 const { Eta }      = require('eta');
 const { init }     = require('./db');
+const { startScheduler } = require('./lib/scheduler');
 
 const app = express();
 const eta = new Eta({ views: path.join(__dirname, 'templates'), cache: false });
@@ -85,6 +86,7 @@ app.use('/trade',     require('./routes/trade'));
 app.use('/blotter',   require('./routes/blotter'));
 app.use('/positions', require('./routes/positions'));
 app.use('/report',    require('./routes/report'));
+app.use('/payoffs',   require('./routes/payoffs'));
 app.use('/players',   require('./routes/players'));
 app.use('/admin',     require('./routes/admin'));
 app.use('/draw',      require('./routes/draw'));
@@ -109,5 +111,6 @@ init().then(db => {
   }
 
   app.locals.db = db;
+  startScheduler(db);
   app.listen(PORT, () => console.log(`WCTG running on http://localhost:${PORT}`));
 }).catch(err => { console.error('DB init failed:', err); process.exit(1); });

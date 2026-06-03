@@ -1,8 +1,9 @@
 const express = require('express');
 const router  = express.Router();
-const { generateToken } = require('../lib/tokens');
-const { notify }        = require('../lib/notify');
+const { generateToken }    = require('../lib/tokens');
+const { notify }           = require('../lib/notify');
 const { logSecurityEvent } = require('./admin');
+const { onTradeActivity }  = require('../lib/scheduler');
 
 function getDb(req) { return req.app.locals.db; }
 
@@ -94,6 +95,7 @@ router.post('/', async (req, res) => {
   const wr = db.get('SELECT * FROM players WHERE id = ?', [parseInt(writer_id)]);
 
   if (godMode) {
+    onTradeActivity(db);
     return res.render('trade_submitted', { title: 'Trade Submitted', trade: { id: tradeId }, counterparty: cp, godMode: true, confirmUrl: null, rejectUrl: null, mailtoUrl: null, currentPlayer });
   }
 
@@ -186,6 +188,7 @@ router.get('/:id/confirm', (req, res) => {
       tx.run(`UPDATE trades SET status='amended', updated_at=datetime('now') WHERE id=?`, [trade.amended_from_id]);
     }
   });
+  onTradeActivity(db);
   notify(
     db.get('SELECT * FROM players WHERE id=?', [trade.writer_id]),
     `Trade #${trade.id} confirmed`,
