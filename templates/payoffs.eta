@@ -1,0 +1,18 @@
+<% layout('./layout') %>
+<h1>Payoffs</h1>
+<table class="detail-table">
+  <thead>
+    <tr>
+      <th>Payoff</th>
+      <th>Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% for (const p of it.payoffs) { %>
+    <tr>
+      <td><%= p.label %></td>
+      <td>£<%= p.value %></td>
+    </tr>
+    <% } %>
+  </tbody>
+</table>
