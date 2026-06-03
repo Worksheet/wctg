@@ -97,4 +97,7 @@
   </div>
 </template>
 
+<% if (it.clonedLegs && it.clonedLegs.length) { %>
+<script>const PREFILL_LEGS = <%~ JSON.stringify(it.clonedLegs) %>;</script>
+<% } %>
 <script src="/leg-builder.js"></script>

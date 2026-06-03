@@ -18,7 +18,23 @@ router.get('/', (req, res) => {
   const players       = db.all('SELECT * FROM players ORDER BY display_order');
   const teams         = db.all('SELECT * FROM teams ORDER BY name');
   const currentPlayer = cookiePlayer(req);
-  res.render('trade', { title: 'New Trade', players, teams, error: null, currentPlayer });
+
+  let clonedLegs = null;
+  if (req.query.clone) {
+    const cloneId = parseInt(req.query.clone, 10);
+    if (!isNaN(cloneId)) {
+      const cloneTrade = db.get('SELECT id FROM trades WHERE id = ?', [cloneId]);
+      if (cloneTrade) {
+        clonedLegs = db.all(`
+          SELECT tl.side, tl.team_id, tl.quantity, tl.leg_type, tl.cash_amount, tl.swap_team_id, tl.swap_quantity
+          FROM trade_legs tl
+          WHERE tl.trade_id = ?
+          ORDER BY tl.id`, [cloneId]);
+      }
+    }
+  }
+
+  res.render('trade', { title: 'New Trade', players, teams, error: null, currentPlayer, clonedLegs });
 });
 
 router.post('/', async (req, res) => {
