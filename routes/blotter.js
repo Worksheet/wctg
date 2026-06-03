@@ -85,10 +85,37 @@ router.get('/:id', (req, res) => {
     else break;
   }
 
+  // Compute exposures for just this trade
+  const exposurePos = {};
+  function addExposure(teamId, playerId, delta) {
+    if (!exposurePos[teamId]) exposurePos[teamId] = {};
+    exposurePos[teamId][playerId] = (exposurePos[teamId][playerId] || 0) + delta;
+  }
+  const teamNamesById = {};
+  for (const leg of trade.legs) {
+    teamNamesById[leg.team_id] = leg.team_name;
+    if (leg.swap_team_id) teamNamesById[leg.swap_team_id] = leg.swap_team_name;
+    const sign = leg.side === 'BUY' ? 1 : -1;
+    addExposure(leg.team_id, trade.writer_id,       sign * leg.quantity);
+    addExposure(leg.team_id, trade.counterparty_id, -sign * leg.quantity);
+    if (leg.leg_type === 'swap' && leg.swap_team_id) {
+      const swapSign = leg.side === 'BUY' ? -1 : 1;
+      addExposure(leg.swap_team_id, trade.writer_id,       swapSign * leg.swap_quantity);
+      addExposure(leg.swap_team_id, trade.counterparty_id, -swapSign * leg.swap_quantity);
+    }
+  }
+  const exposureRows = Object.keys(exposurePos)
+    .map(teamId => ({
+      teamName: teamNamesById[parseInt(teamId)] || `Team ${teamId}`,
+      writerQty:       exposurePos[teamId][trade.writer_id]       || 0,
+      counterpartyQty: exposurePos[teamId][trade.counterparty_id] || 0,
+    }))
+    .sort((a, b) => a.teamName.localeCompare(b.teamName));
+
   const host       = `${req.protocol}://${req.get('host')}`;
   const confirmUrl = trade.status === 'pending' ? `${host}/trade/${trade.id}/confirm?token=${trade.confirm_token}` : null;
   const rejectUrl  = trade.status === 'pending' ? `${host}/trade/${trade.id}/reject?token=${trade.reject_token}`  : null;
-  res.render('trade_detail', { title: `Trade #${trade.id}`, trade, chain, confirmUrl, rejectUrl, godMode });
+  res.render('trade_detail', { title: `Trade #${trade.id}`, trade, chain, confirmUrl, rejectUrl, godMode, exposureRows });
 });
 
 router.post('/:id/delete', (req, res) => {

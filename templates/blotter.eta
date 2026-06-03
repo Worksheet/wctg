@@ -24,13 +24,13 @@
 <table class="blotter-table">
   <thead>
     <tr>
-      <th>#</th><th>Writer</th><th>Counterparty</th><th>Legs</th><th>Status</th><th>Date</th><th></th><th>Accept</th><th>Reject</th>
+      <th>#</th><th>Writer</th><th>Counterparty</th><th>Legs</th><th>Note</th><th>Status</th><th></th><th>Accept</th><th>Reject</th>
     </tr>
   </thead>
   <tbody>
   <% for (const t of it.trades) { %>
     <tr class="status-<%= t.status %>">
-      <td><a href="/blotter/<%= t.id %>">#<%= t.id %></a></td>
+      <td><a href="/blotter/<%= t.id %>">#<%= t.id %></a><% if (t.created_at) { %><br><span style="color:#666;font-size:0.8em"><%= t.created_at.slice(0,16).replace('T',' ') %></span><% } %></td>
       <td><%= t.writer.name %></td>
       <td><%= t.counterparty.name %></td>
       <td>
@@ -41,13 +41,13 @@
           </span>
         <% } %>
       </td>
+      <td><%= t.note || '' %></td>
       <td>
         <span class="badge badge-<%= t.status %>"><%= t.status %></span>
         <% if (t.pendingAmendment) { %>
         <div style="margin-top:0.3rem"><span class="badge badge-amendment-pending" title="Expires <%= t.pendingAmendment.expires_at %>">Amendment pending <a href="/blotter/<%= t.pendingAmendment.id %>">#<%= t.pendingAmendment.id %></a></span></div>
         <% } %>
       </td>
-      <td><%= t.created_at ? t.created_at.slice(0,10) : '' %></td>
       <td>
         <% if (t.status === 'pending' || t.status === 'confirmed') { %>
         <a href="/blotter/<%= t.id %>/amend">Amend</a>
