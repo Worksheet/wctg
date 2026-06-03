@@ -42,6 +42,25 @@
 <% if (it.trade.status === 'pending' || it.trade.status === 'confirmed') { %>
 <p><a href="/blotter/<%= it.trade.id %>/amend" class="btn-primary">Amend this trade</a></p>
 <% } %>
+<p><a href="/trade?clone=<%= it.trade.id %>" class="btn-primary">Clone trade</a></p>
+
+<% if (it.exposureRows && it.exposureRows.length) { %>
+<h2>Exposures</h2>
+<table class="blotter-table" style="max-width:400px">
+  <thead>
+    <tr><th>Team</th><th><%= it.trade.writer.name %></th><th><%= it.trade.counterparty.name %></th></tr>
+  </thead>
+  <tbody>
+  <% for (const row of it.exposureRows) { %>
+    <tr>
+      <td><%= row.teamName %></td>
+      <td class="<%= row.writerQty > 0 ? 'pos-long' : row.writerQty < 0 ? 'pos-short' : '' %>"><%= row.writerQty !== 0 ? row.writerQty : '' %></td>
+      <td class="<%= row.counterpartyQty > 0 ? 'pos-long' : row.counterpartyQty < 0 ? 'pos-short' : '' %>"><%= row.counterpartyQty !== 0 ? row.counterpartyQty : '' %></td>
+    </tr>
+  <% } %>
+  </tbody>
+</table>
+<% } %>
 <% if (it.godMode && it.trade.status !== 'deleted') { %>
 <form method="POST" action="/blotter/<%= it.trade.id %>/delete" onsubmit="return confirm('Delete trade #<%= it.trade.id %>? This cannot be undone (use a snapshot to restore).')">
   <button type="submit" style="background:#c00;color:#fff;border:none;padding:0.3rem 0.8rem;cursor:pointer">⚡ Delete trade</button>
