@@ -131,7 +131,7 @@
       <tr>
         <th>Team</th>
         <% for (const p of it.players) { %>
-        <th><%= p.name.split(' ')[0] %></th>
+        <th title="<%= p.name %> (<%= p.email %>)"><%= p.name.split(' ')[0] %></th>
         <% } %>
       </tr>
     </thead>

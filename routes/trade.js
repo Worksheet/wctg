@@ -64,7 +64,7 @@ router.post('/', async (req, res) => {
     team_id:       parseInt(teamIds[i], 10),
     quantity:      parseInt(quantities[i], 10),
     leg_type:      legTypes[i],
-    cash_amount:   legTypes[i] === 'cash' ? parseInt(cashAmounts[i], 10) : null,
+    cash_amount:   legTypes[i] === 'cash' ? parseFloat(cashAmounts[i]) : null,
     swap_team_id:  legTypes[i] === 'swap' ? parseInt(swapTeamIds[i], 10) : null,
     swap_quantity: legTypes[i] === 'swap' ? parseInt(swapQuantities[i], 10) : null,
   }));

@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS trade_legs (
   team_id       INTEGER NOT NULL REFERENCES teams(id),
   quantity      INTEGER NOT NULL,
   leg_type      TEXT    NOT NULL,
-  cash_amount   INTEGER,
+  cash_amount   REAL,
   swap_team_id  INTEGER REFERENCES teams(id),
   swap_quantity INTEGER
 );
