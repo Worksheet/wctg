@@ -95,6 +95,19 @@
   .filter-item:hover { background: #eef2ff; }
   .filter-item.selected { background: #4a90e2; color: #fff; }
   .filter-item.selected:hover { background: #357abd; }
+  /* User positions tfoot */
+  .positions-table tfoot td {
+    font-weight: bold;
+    background: #e8e8e0;
+    border-top: 2px solid #aaa;
+  }
+  .positions-table tfoot td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #e8e8e0;
+    box-shadow: 1px 0 0 #bbb;
+  }
 </style>
 <div id="positions-page">
   <div class="pos-header">
@@ -154,6 +167,49 @@
   </table>
   </div>
 </div>
+
+<% if (it.currentPlayer) { %>
+<div style="margin-top: 2rem;">
+  <h2><%= it.currentPlayer.name %>'s Positions</h2>
+  <% if (it.userTradePos.trades.length === 0) { %>
+  <p>No confirmed trades.</p>
+  <% } else { %>
+  <div class="positions-wrap">
+  <table class="positions-table">
+    <thead>
+      <tr>
+        <th>Trade</th>
+        <% for (const team of it.userTeams) { %>
+        <th><%= team.name %></th>
+        <% } %>
+      </tr>
+    </thead>
+    <tbody>
+    <% for (const trade of it.userTradePos.trades) { %>
+      <tr>
+        <td class="team-name"><a href="/blotter/<%= trade.id %>">#<%= trade.id %></a></td>
+        <% for (const team of it.userTeams) { %>
+          <% const v = (trade.positions[team.id] || 0); %>
+        <td class="<%= v > 0 ? 'pos-long' : v < 0 ? 'pos-short' : '' %>"><%= v !== 0 ? v : '' %></td>
+        <% } %>
+      </tr>
+    <% } %>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td class="team-name">Total</td>
+        <% for (const team of it.userTeams) { %>
+          <% const total = it.userTradePos.trades.reduce((sum, trd) => sum + (trd.positions[team.id] || 0), 0); %>
+        <td class="<%= total > 0 ? 'pos-long' : total < 0 ? 'pos-short' : '' %>"><%= total !== 0 ? total : '' %></td>
+        <% } %>
+      </tr>
+    </tfoot>
+  </table>
+  </div>
+  <% } %>
+</div>
+<% } %>
+
 <script>
 (function () {
   var btn = document.getElementById('btn-fullscreen');
