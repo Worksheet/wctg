@@ -41,7 +41,7 @@
       <option value="swap">Swap</option>
     </select>
     <span class="cash-fields">
-      £<input type="number" name="cash_amount" value="0" min="0" step="1" class="cash-input">
+      £<input type="number" name="cash_amount" value="0" min="0" step="0.01" class="cash-input">
     </span>
     <span class="swap-fields" style="display:none">
       <select name="swap_team_id" class="swap-team-select">
