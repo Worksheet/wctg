@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const ExcelJS = require('exceljs');
 const { computePositions } = require('../lib/positions');
 
 function computeUserTradePositions(db, playerId) {
@@ -66,6 +67,77 @@ router.get('/', (req, res) => {
   const userTeams    = teams.filter(t => userTradePos.teamIds.includes(t.id));
 
   res.render('positions', { title: 'Positions', teams, players, pos, currentPlayer, userTradePos, userTeams });
+});
+
+router.get('/download', async (req, res) => {
+  const db      = req.app.locals.db;
+  const teams   = db.all('SELECT * FROM teams ORDER BY name');
+  const players = db.all('SELECT * FROM players ORDER BY display_order');
+  const pos     = computePositions(db);
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Positions');
+
+  sheet.addRow(['Team', ...players.map(p => p.name)]);
+
+  for (const team of teams) {
+    const row = players.map(p => (pos[team.id] || {})[p.id] || 0);
+    if (row.some(v => v !== 0)) {
+      sheet.addRow([team.name, ...row.map(v => v !== 0 ? v : '')]);
+    }
+  }
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', 'attachment; filename="positions.xlsx"');
+  await workbook.xlsx.write(res);
+  res.end();
+});
+
+router.get('/player-download/:id', async (req, res) => {
+  const db       = req.app.locals.db;
+  const playerId = parseInt(req.params.id, 10);
+  const player   = db.get('SELECT * FROM players WHERE id = ?', [playerId]);
+  if (!player) return res.status(404).send('Player not found');
+
+  const teams        = db.all('SELECT * FROM teams ORDER BY name');
+  const userTradePos = computeUserTradePositions(db, playerId);
+  const userTeams    = teams.filter(t => userTradePos.teamIds.includes(t.id));
+
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet(`${player.name}`);
+
+  sheet.addRow(['Trade', ...userTeams.map(t => t.name)]);
+
+  for (const trade of userTradePos.trades) {
+    sheet.addRow([`#${trade.id}`, ...userTeams.map(t => {
+      const v = trade.positions[t.id] || 0;
+      return v !== 0 ? v : '';
+    })]);
+  }
+
+  const totals = userTeams.map(t =>
+    userTradePos.trades.reduce((sum, trd) => sum + (trd.positions[t.id] || 0), 0)
+  );
+  sheet.addRow(['Total', ...totals.map(v => v !== 0 ? v : '')]);
+
+  const safeName = player.name.replace(/[^a-z0-9]/gi, '_');
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${safeName}_positions.xlsx"`);
+  await workbook.xlsx.write(res);
+  res.end();
+});
+
+router.get('/player-data/:id', (req, res) => {
+  const db       = req.app.locals.db;
+  const playerId = parseInt(req.params.id, 10);
+  const player   = db.get('SELECT * FROM players WHERE id = ?', [playerId]);
+  if (!player) return res.status(404).json({ error: 'Player not found' });
+
+  const teams        = db.all('SELECT * FROM teams ORDER BY name');
+  const userTradePos = computeUserTradePositions(db, playerId);
+  const userTeams    = teams.filter(t => userTradePos.teamIds.includes(t.id));
+
+  res.json({ player, userTradePos, userTeams });
 });
 
 module.exports = router;
