@@ -81,7 +81,15 @@ router.post('/', async (req, res) => {
     return res.render('trade', { title: 'New Trade', players, teams, error: errors.join(' '), currentPlayer });
   }
 
-  const godMode      = req.cookies.wctg_god === '1';
+  const godMode = req.cookies.wctg_god === '1';
+
+  if (!godMode && currentPlayer && parseInt(writer_id, 10) !== currentPlayer.id) {
+    logSecurityEvent(db, req, 'impersonation-attempt', currentPlayer.id,
+      `Attempted to submit trade as player ID ${writer_id}`);
+    return res.render('trade', { title: 'New Trade', players, teams,
+      error: `You are logged in as ${currentPlayer.name} and cannot submit a trade on behalf of another player.`,
+      currentPlayer, clonedLegs: null });
+  }
   const confirmToken = generateToken();
   const rejectToken  = generateToken();
 
