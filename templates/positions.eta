@@ -3,6 +3,7 @@
   main { max-width: none !important; }
   .pos-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; }
   .pos-header h1 { margin: 0; border-bottom: none; padding-bottom: 0; }
+  .pos-header h2 { margin: 0; border-bottom: none; padding-bottom: 0; }
   /* Sticky first column */
   .positions-table thead th:first-child {
     position: sticky;
@@ -95,6 +96,30 @@
   .filter-item:hover { background: #eef2ff; }
   .filter-item.selected { background: #4a90e2; color: #fff; }
   .filter-item.selected:hover { background: #357abd; }
+  /* User positions tfoot */
+  .positions-table tfoot td {
+    font-weight: bold;
+    background: #e8e8e0;
+    border-top: 2px solid #aaa;
+  }
+  .positions-table tfoot td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: #e8e8e0;
+    box-shadow: 1px 0 0 #bbb;
+  }
+  /* Player select in heading */
+  #player-select {
+    font-size: inherit;
+    font-weight: bold;
+    font-family: inherit;
+    padding: 0.1rem 0.3rem;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background: #fff;
+    cursor: pointer;
+  }
 </style>
 <div id="positions-page">
   <div class="pos-header">
@@ -102,6 +127,7 @@
     <button id="btn-fullscreen">Full Screen</button>
     <button id="btn-hide-empty">Hide Empty Players</button>
     <button id="btn-transpose">Transpose</button>
+    <button onclick="window.location.href='/positions/download'">Download to Excel</button>
   </div>
   <p>Confirmed trades only.</p>
 
@@ -131,7 +157,7 @@
       <tr>
         <th>Team</th>
         <% for (const p of it.players) { %>
-        <th><%= p.name.split(' ')[0] %></th>
+        <th title="<%= p.name %> (<%= p.email %>)"><%= p.name.split(' ')[0] %></th>
         <% } %>
       </tr>
     </thead>
@@ -154,6 +180,60 @@
   </table>
   </div>
 </div>
+
+<% if (it.currentPlayer) { %>
+<div style="margin-top: 2rem;">
+  <div class="pos-header">
+    <h2>
+      <select id="player-select">
+        <% for (const p of it.players) { %>
+        <option value="<%= p.id %>" <%= p.id === it.currentPlayer.id ? 'selected' : '' %>><%= p.name %></option>
+        <% } %>
+      </select>'s Positions
+    </h2>
+    <button id="btn-download-player" onclick="window.location.href='/positions/player-download/' + document.getElementById('player-select').value">Download to Excel</button>
+  </div>
+  <div id="user-positions-content">
+  <% if (it.userTradePos.trades.length === 0) { %>
+  <p>No confirmed trades.</p>
+  <% } else { %>
+  <div class="positions-wrap">
+  <table class="positions-table">
+    <thead>
+      <tr>
+        <th>Trade</th>
+        <% for (const team of it.userTeams) { %>
+        <th><%= team.name %></th>
+        <% } %>
+      </tr>
+    </thead>
+    <tbody>
+    <% for (const trade of it.userTradePos.trades) { %>
+      <tr>
+        <td class="team-name"><a href="/blotter/<%= trade.id %>">#<%= trade.id %></a></td>
+        <% for (const team of it.userTeams) { %>
+          <% const v = (trade.positions[team.id] || 0); %>
+        <td class="<%= v > 0 ? 'pos-long' : v < 0 ? 'pos-short' : '' %>"><%= v !== 0 ? v : '' %></td>
+        <% } %>
+      </tr>
+    <% } %>
+    </tbody>
+    <tfoot>
+      <tr>
+        <td class="team-name">Total</td>
+        <% for (const team of it.userTeams) { %>
+          <% const total = it.userTradePos.trades.reduce((sum, trd) => sum + (trd.positions[team.id] || 0), 0); %>
+        <td class="<%= total > 0 ? 'pos-long' : total < 0 ? 'pos-short' : '' %>"><%= total !== 0 ? total : '' %></td>
+        <% } %>
+      </tr>
+    </tfoot>
+  </table>
+  </div>
+  <% } %>
+  </div>
+</div>
+<% } %>
+
 <script>
 (function () {
   var btn = document.getElementById('btn-fullscreen');
@@ -439,5 +519,62 @@
   btnFilter.addEventListener('click', applyFilter);
 
   buildFilterLists();
+
+  // --- Player dropdown for second table ---
+  var playerSelect = document.getElementById('player-select');
+  if (playerSelect) {
+    playerSelect.addEventListener('change', function () {
+      var playerId = this.value;
+      fetch('/positions/player-data/' + playerId)
+        .then(function (r) { return r.json(); })
+        .then(function (data) { renderPlayerTable(data); });
+    });
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function renderPlayerTable(data) {
+    var content = document.getElementById('user-positions-content');
+    if (!content) return;
+
+    if (data.userTradePos.trades.length === 0) {
+      content.innerHTML = '<p>No confirmed trades.</p>';
+      return;
+    }
+
+    var html = '<div class="positions-wrap"><table class="positions-table"><thead><tr><th>Trade</th>';
+    data.userTeams.forEach(function (t) {
+      html += '<th>' + escHtml(t.name) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+
+    data.userTradePos.trades.forEach(function (trade) {
+      html += '<tr><td class="team-name"><a href="/blotter/' + trade.id + '">#' + trade.id + '</a></td>';
+      data.userTeams.forEach(function (t) {
+        var v = trade.positions[t.id] || 0;
+        var cls = v > 0 ? 'pos-long' : v < 0 ? 'pos-short' : '';
+        html += '<td class="' + cls + '">' + (v !== 0 ? v : '') + '</td>';
+      });
+      html += '</tr>';
+    });
+
+    html += '</tbody><tfoot><tr><td class="team-name">Total</td>';
+    data.userTeams.forEach(function (t) {
+      var total = data.userTradePos.trades.reduce(function (sum, trd) {
+        return sum + (trd.positions[t.id] || 0);
+      }, 0);
+      var cls = total > 0 ? 'pos-long' : total < 0 ? 'pos-short' : '';
+      html += '<td class="' + cls + '">' + (total !== 0 ? total : '') + '</td>';
+    });
+    html += '</tr></tfoot></table></div>';
+
+    content.innerHTML = html;
+  }
 })();
 </script>

@@ -82,7 +82,7 @@
       <option value="swap" selected>Swap</option>
     </select>
     <span class="cash-fields" style="display:none">
-      £<input type="number" name="cash_amount" value="0" min="0" step="1" class="cash-input">
+      £<input type="number" name="cash_amount" value="0" min="0" step="0.01" class="cash-input">
     </span>
     <span class="swap-fields">
       <select name="swap_team_id" class="swap-team-select">
