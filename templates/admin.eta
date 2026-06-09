@@ -102,7 +102,7 @@ function confirmPlayerUpload(form) {
   <tr>
     <td><%= s.id %></td>
     <td><%= s.label || '' %></td>
-    <td><%= s.created_at %></td>
+    <td><%= it.toLondonTime(s.created_at) %></td>
     <% if (it.isAdmin) { %>
     <td>
       <form method="POST" action="/admin/snapshot/<%= s.id %>/revert" onsubmit="return confirm('Restore snapshot #<%= s.id %>? The current state will be snapshotted first.')">
@@ -186,7 +186,7 @@ function confirmClear(form) {
   <tbody>
   <% for (const e of it.sar) { %>
   <tr>
-    <td><%= e.created_at %></td>
+    <td style="white-space:nowrap"><%= it.toLondonTime(e.created_at) %></td>
     <td><span class="badge badge-<%= e.event_type %>"><%= e.event_type %></span></td>
     <td><%= e.actor %></td>
     <td><%= e.detail || '—' %></td>

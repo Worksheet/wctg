@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const { Eta }      = require('eta');
 const { init }     = require('./db');
 const { startScheduler } = require('./lib/scheduler');
+const { toLondonTime }   = require('./lib/time');
 
 const app = express();
 const eta = new Eta({ views: path.join(__dirname, 'templates'), cache: false });
@@ -17,8 +18,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Globals available in every template as it.godMode etc.
 app.use((req, res, next) => {
-  res.locals.godMode        = req.cookies.wctg_god === '1';
+  res.locals.godMode         = req.cookies.wctg_god === '1';
   res.locals.currentPlayerId = req.cookies.wctg_player ? parseInt(req.cookies.wctg_player, 10) : null;
+  res.locals.toLondonTime    = toLondonTime;
   next();
 });
 
