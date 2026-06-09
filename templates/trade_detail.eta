@@ -5,7 +5,7 @@
   <tr><th>Writer</th><td><%= it.trade.writer.name %></td></tr>
   <tr><th>Counterparty</th><td><%= it.trade.counterparty.name %></td></tr>
   <tr><th>Status</th><td><span class="badge badge-<%= it.trade.status %>"><%= it.trade.status %></span></td></tr>
-  <tr><th>Date</th><td><%= it.trade.created_at %></td></tr>
+  <tr><th>Date</th><td><%= it.toLondonTime(it.trade.created_at) %></td></tr>
   <% if (it.trade.note) { %><tr><th>Note</th><td><%= it.trade.note %></td></tr><% } %>
   <% if (it.trade.amended_from_id) { %><tr><th>Amends</th><td><a href="/blotter/<%= it.trade.amended_from_id %>">#<%= it.trade.amended_from_id %></a></td></tr><% } %>
   <% if (it.trade.pendingAmendment) { %>
@@ -14,7 +14,7 @@
     <td>
       <a href="/blotter/<%= it.trade.pendingAmendment.id %>">#<%= it.trade.pendingAmendment.id %></a>
       <span class="badge badge-amendment-pending">Amendment pending</span>
-      <% if (it.trade.pendingAmendment.expires_at) { %>— expires <%= it.trade.pendingAmendment.expires_at.slice(0,16) %><% } %>
+      <% if (it.trade.pendingAmendment.expires_at) { %>— expires <%= it.toLondonTime(it.trade.pendingAmendment.expires_at) %><% } %>
     </td>
   </tr>
   <% } %>
@@ -83,7 +83,7 @@
 <h2>Amendment history</h2>
 <ul>
   <% for (const t of it.chain) { %>
-  <li><a href="/blotter/<%= t.id %>">#<%= t.id %></a> — <span class="badge badge-<%= t.status %>"><%= t.status %></span> <%= t.created_at ? t.created_at.slice(0,10) : '' %></li>
+  <li><a href="/blotter/<%= t.id %>">#<%= t.id %></a> — <span class="badge badge-<%= t.status %>"><%= t.status %></span> <%= it.toLondonTime(t.created_at, true) %></li>
   <% } %>
 </ul>
 <% } %>

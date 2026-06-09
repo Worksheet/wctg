@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { computePositions } = require('../lib/positions');
 const { buildMailto } = require('../lib/notify');
+const { londonDateStr } = require('../lib/time');
 
 router.get('/', (req, res) => {
   const db      = req.app.locals.db;
@@ -30,7 +31,7 @@ router.get('/', (req, res) => {
 
   // Build text for email
   const lines = [
-    `WCTG Daily Report — ${new Date().toDateString()}`,
+    `WCTG Daily Report — ${londonDateStr()}`,
     '',
     '=== Recent Trades ===',
   ];
@@ -81,7 +82,7 @@ router.get('/email', (req, res) => {
       WHERE tl.trade_id = ?`, [t.id]);
   }
 
-  const dateStr = new Date().toDateString();
+  const dateStr = londonDateStr();
   res.render('report_email', { title: `WCTG Report — ${dateStr}`, trades, teams, players, pos, dateStr });
 });
 
@@ -110,7 +111,7 @@ function fetchReportData(req) {
 
 router.get('/email.eml', (req, res) => {
   const { players, teams, pos, trades } = fetchReportData(req);
-  const dateStr = new Date().toDateString();
+  const dateStr = londonDateStr();
   const subject = `WCTG Daily Report — ${dateStr}`;
   const to      = players.map(p => p.email).filter(Boolean).join(', ');
 
